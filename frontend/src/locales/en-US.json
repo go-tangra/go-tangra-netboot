@@ -71,6 +71,8 @@
       "provision": "Provision",
       "cancelProvision": "Cancel Provisioning",
       "unknownBoots": "Unknown Boots",
+      "unknownBootsHelp": "MACs that requested boot but are registered to no machine. Register one to onboard it, or investigate if it shouldn't be on the provisioning network.",
+      "noUnknownBoots": "No unknown boot attempts recorded.",
       "lastSeen": "Last Seen",
       "attempts": "Boot Attempts",
       "register": "Register",
