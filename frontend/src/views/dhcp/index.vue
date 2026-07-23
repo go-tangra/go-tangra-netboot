@@ -4,6 +4,19 @@ import { onMounted, ref } from 'vue';
 import { Page } from 'shell/vben/common-ui';
 import { $t } from 'shell/locales';
 
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Empty,
+  Input,
+  InputNumber,
+  Modal,
+  Table,
+  notification,
+} from 'ant-design-vue';
+
 import { useNetbootDhcpStore } from '../../stores/netboot-dhcp.state';
 import type { DhcpConfig, DhcpSubnet, ForeignServer, Lease } from '../../types';
 
@@ -17,11 +30,10 @@ const conflicts = ref<ForeignServer[]>([]);
 
 const loading = ref(false);
 const saving = ref(false);
-const errorMessage = ref('');
+const toggling = ref(false);
 
 async function load() {
   loading.value = true;
-  errorMessage.value = '';
   try {
     const [configResult, leaseResult, conflictResult] = await Promise.all([
       store.getConfig(),
@@ -29,12 +41,12 @@ async function load() {
       store.listConflicts({ page: 1, pageSize: 20 }),
     ]);
     config.value = configResult.config ?? {};
-    subnets.value = (configResult.config?.subnets ?? []).map((subnet) => ({ ...subnet }));
+    subnets.value = (configResult.config?.subnets ?? []).map((s) => ({ ...s }));
     leaseTtl.value = configResult.config?.leaseTtlSeconds ?? 3600;
     leases.value = leaseResult.leases ?? [];
     conflicts.value = conflictResult.servers ?? [];
-  } catch (error) {
-    errorMessage.value = (error as Error).message || $t('netboot.common.loadFailed');
+  } catch (e) {
+    notification.error({ message: (e as Error).message || $t('netboot.common.loadFailed') });
   } finally {
     loading.value = false;
   }
@@ -54,180 +66,201 @@ function dnsText(subnet: DhcpSubnet): string {
 
 function setDns(subnet: DhcpSubnet, value: string) {
   subnet.dns = value
-    .split(',')
+    .split(/[,\s]+/)
     .map((entry) => entry.trim())
     .filter(Boolean);
 }
 
 async function save() {
   saving.value = true;
-  errorMessage.value = '';
   try {
     const result = await store.updateConfig(leaseTtl.value, subnets.value);
     config.value = result.config ?? {};
-  } catch (error) {
-    errorMessage.value = (error as Error).message;
+    notification.success({ message: $t('netboot.page.dhcp.updateSuccess') });
+  } catch (e) {
+    notification.error({ message: (e as Error).message || $t('netboot.common.loadFailed') });
   } finally {
     saving.value = false;
   }
 }
 
-// Enabling and disabling the authoritative DHCP server changes the behaviour
-// of an entire network segment, so both directions are confirmed.
-async function toggle() {
+// Toggling the authoritative DHCP server reshapes a whole network segment, so
+// both directions are confirmed.
+function toggle() {
   const enabling = !config.value.enabled;
-  const prompt = enabling
-    ? $t('netboot.page.dhcp.confirmEnable')
-    : $t('netboot.page.dhcp.confirmDisable');
-  if (!window.confirm(prompt)) return;
-
-  const result = enabling ? await store.enable() : await store.disable();
-  config.value = result.config ?? {};
+  Modal.confirm({
+    title: enabling ? $t('netboot.page.dhcp.enable') : $t('netboot.page.dhcp.disable'),
+    content: enabling
+      ? $t('netboot.page.dhcp.confirmEnable')
+      : $t('netboot.page.dhcp.confirmDisable'),
+    okType: enabling ? 'primary' : 'danger',
+    async onOk() {
+      toggling.value = true;
+      try {
+        const result = enabling ? await store.enable() : await store.disable();
+        config.value = result.config ?? {};
+        notification.success({
+          message: enabling
+            ? $t('netboot.page.dhcp.enableSuccess')
+            : $t('netboot.page.dhcp.disableSuccess'),
+        });
+      } catch (e) {
+        notification.error({ message: (e as Error).message || $t('netboot.common.loadFailed') });
+      } finally {
+        toggling.value = false;
+      }
+    },
+  });
 }
+
+const leaseColumns = [
+  { title: $t('netboot.page.dhcp.ip'), key: 'ip' },
+  { title: $t('netboot.page.machine.mac'), key: 'mac' },
+  { title: $t('netboot.page.session.machine'), key: 'machine' },
+  { title: $t('netboot.page.dhcp.expiresAt'), key: 'expiresAt' },
+];
+
+const conflictColumns = [
+  { title: $t('netboot.page.dhcp.serverId'), key: 'serverId' },
+  { title: $t('netboot.page.machine.lastSeen'), key: 'lastSeen' },
+  { title: $t('netboot.page.dhcp.offersSeen'), key: 'offersSeen' },
+];
 
 onMounted(load);
 </script>
 
 <template>
   <Page :title="$t('netboot.page.dhcp.title')">
-    <div class="space-y-6">
-      <div v-if="errorMessage" class="rounded border border-red-300 bg-red-50 p-3 text-red-800">
-        {{ errorMessage }}
-      </div>
-
-      <div class="flex items-center gap-3 rounded border p-4">
-        <span class="text-sm">{{ $t('netboot.page.dhcp.status') }}:</span>
-        <span
-          class="rounded px-2 py-0.5 text-xs"
-          :class="
-            config.enabled
-              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-              : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
-          "
-        >
-          {{ config.enabled ? $t('netboot.page.dhcp.enabled') : $t('netboot.page.dhcp.disabled') }}
-        </span>
-        <span class="text-xs text-gray-500">
-          {{ $t('netboot.page.dhcp.version') }}: {{ config.version }}
-        </span>
-        <button
-          class="ml-auto rounded px-3 py-1.5 text-white"
-          :class="config.enabled ? 'bg-red-600' : 'bg-primary'"
-          @click="toggle"
-        >
-          {{ config.enabled ? $t('netboot.page.dhcp.disable') : $t('netboot.page.dhcp.enable') }}
-        </button>
-        <button class="rounded border px-3 py-1.5" :disabled="loading" @click="load">
-          {{ $t('netboot.common.refresh') }}
-        </button>
-      </div>
-
-      <div class="rounded border p-4">
-        <div class="mb-3 flex items-center gap-3">
-          <label class="text-sm">{{ $t('netboot.page.dhcp.leaseTtl') }}</label>
-          <input v-model.number="leaseTtl" type="number" class="w-32 rounded border px-3 py-1.5" />
-          <button class="ml-auto rounded border px-3 py-1.5" @click="addSubnet">
-            {{ $t('netboot.page.dhcp.addSubnet') }}
-          </button>
-          <button class="rounded bg-primary px-3 py-1.5 text-white" :disabled="saving" @click="save">
-            {{ $t('netboot.common.save') }}
-          </button>
+    <div class="space-y-4">
+      <!-- Server status + toggle -->
+      <Card size="small">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="text-sm">{{ $t('netboot.page.dhcp.status') }}:</span>
+          <Badge
+            :status="config.enabled ? 'success' : 'default'"
+            :text="config.enabled ? $t('netboot.page.dhcp.enabled') : $t('netboot.page.dhcp.disabled')"
+          />
+          <span class="text-xs text-gray-500">
+            {{ $t('netboot.page.dhcp.version') }}: {{ config.version ?? 0 }}
+          </span>
+          <div class="ml-auto flex items-center gap-2">
+            <Button
+              :type="config.enabled ? 'default' : 'primary'"
+              :danger="config.enabled"
+              :loading="toggling"
+              @click="toggle"
+            >
+              {{ config.enabled ? $t('netboot.page.dhcp.disable') : $t('netboot.page.dhcp.enable') }}
+            </Button>
+            <Button :loading="loading" @click="load">{{ $t('netboot.common.refresh') }}</Button>
+          </div>
         </div>
+      </Card>
 
-        <table class="w-full text-left text-sm">
-          <thead class="bg-gray-50 dark:bg-gray-800">
-            <tr>
-              <th class="px-2 py-2">{{ $t('netboot.page.dhcp.network') }}</th>
-              <th class="px-2 py-2">{{ $t('netboot.page.dhcp.rangeStart') }}</th>
-              <th class="px-2 py-2">{{ $t('netboot.page.dhcp.rangeEnd') }}</th>
-              <th class="px-2 py-2">{{ $t('netboot.page.dhcp.gateway') }}</th>
-              <th class="px-2 py-2">{{ $t('netboot.page.dhcp.dns') }}</th>
-              <th class="px-2 py-2"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(subnet, index) in subnets" :key="index" class="border-t">
-              <td class="px-2 py-1">
-                <input v-model="subnet.network" class="w-full rounded border px-2 py-1 font-mono text-xs" />
-              </td>
-              <td class="px-2 py-1">
-                <input v-model="subnet.rangeStart" class="w-full rounded border px-2 py-1 font-mono text-xs" />
-              </td>
-              <td class="px-2 py-1">
-                <input v-model="subnet.rangeEnd" class="w-full rounded border px-2 py-1 font-mono text-xs" />
-              </td>
-              <td class="px-2 py-1">
-                <input v-model="subnet.gateway" class="w-full rounded border px-2 py-1 font-mono text-xs" />
-              </td>
-              <td class="px-2 py-1">
-                <input
-                  :value="dnsText(subnet)"
-                  class="w-full rounded border px-2 py-1 font-mono text-xs"
-                  @input="setDns(subnet, ($event.target as HTMLInputElement).value)"
-                />
-              </td>
-              <td class="px-2 py-1">
-                <button class="text-red-600" @click="removeSubnet(index)">
-                  {{ $t('netboot.page.dhcp.removeSubnet') }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- Foreign DHCP servers (rogue server warning) -->
+      <Alert v-if="conflicts.length > 0" type="warning" show-icon>
+        <template #message>{{ $t('netboot.page.dhcp.conflicts') }}</template>
+        <template #description>
+          <div class="mb-2">{{ $t('netboot.page.dhcp.conflictsHelp') }}</div>
+          <Table
+            :columns="conflictColumns"
+            :data-source="conflicts"
+            :pagination="false"
+            row-key="serverId"
+            size="small"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'serverId'">
+                <span class="font-mono text-xs">{{ record.serverId }}</span>
+              </template>
+              <template v-else-if="column.key === 'lastSeen'">
+                <span class="text-xs">{{ record.lastSeen }}</span>
+              </template>
+              <template v-else-if="column.key === 'offersSeen'">{{ record.offersSeen }}</template>
+            </template>
+          </Table>
+        </template>
+      </Alert>
 
-      <!--
-        A second DHCP server on the provisioning segment races netbootd and
-        silently breaks installs, so conflicts are shown prominently rather
-        than buried in a diagnostics page.
-      -->
-      <div v-if="conflicts.length > 0" class="rounded border border-amber-400 bg-amber-50 p-4 dark:bg-amber-950">
-        <div class="font-medium">{{ $t('netboot.page.dhcp.conflicts') }}</div>
-        <p class="mb-2 text-xs">{{ $t('netboot.page.dhcp.conflictsHelp') }}</p>
-        <table class="w-full text-left text-sm">
-          <thead>
-            <tr>
-              <th class="px-2 py-1">{{ $t('netboot.page.dhcp.serverId') }}</th>
-              <th class="px-2 py-1">{{ $t('netboot.page.machine.lastSeen') }}</th>
-              <th class="px-2 py-1">{{ $t('netboot.page.dhcp.offersSeen') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="server in conflicts" :key="server.serverId" class="border-t">
-              <td class="px-2 py-1 font-mono text-xs">{{ server.serverId }}</td>
-              <td class="px-2 py-1 text-xs">{{ server.lastSeen }}</td>
-              <td class="px-2 py-1">{{ server.offersSeen }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      <!-- Config editor -->
+      <Card size="small" :title="$t('netboot.page.dhcp.subnets')">
+        <template #extra>
+          <div class="flex items-center gap-2">
+            <span class="text-sm">{{ $t('netboot.page.dhcp.leaseTtl') }}</span>
+            <InputNumber v-model:value="leaseTtl" :min="60" :max="604800" class="w-32" />
+            <Button @click="addSubnet">{{ $t('netboot.page.dhcp.addSubnet') }}</Button>
+            <Button type="primary" :loading="saving" @click="save">
+              {{ $t('netboot.common.save') }}
+            </Button>
+          </div>
+        </template>
 
-      <div class="rounded border">
-        <div class="border-b bg-gray-50 px-3 py-2 font-medium dark:bg-gray-800">
-          {{ $t('netboot.page.dhcp.leases') }}
+        <div v-if="subnets.length === 0">
+          <Empty :description="$t('netboot.page.dhcp.noSubnets')" />
         </div>
-        <table class="w-full text-left text-sm">
-          <thead>
-            <tr>
-              <th class="px-3 py-2">{{ $t('netboot.page.dhcp.ip') }}</th>
-              <th class="px-3 py-2">{{ $t('netboot.page.machine.mac') }}</th>
-              <th class="px-3 py-2">{{ $t('netboot.page.session.machine') }}</th>
-              <th class="px-3 py-2">{{ $t('netboot.page.dhcp.expiresAt') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="lease in leases" :key="lease.ip" class="border-t">
-              <td class="px-3 py-2 font-mono text-xs">{{ lease.ip }}</td>
-              <td class="px-3 py-2 font-mono text-xs">{{ lease.mac }}</td>
-              <td class="px-3 py-2">{{ lease.machineName || '—' }}</td>
-              <td class="px-3 py-2 text-xs">{{ lease.expiresAt }}</td>
-            </tr>
-            <tr v-if="leases.length === 0">
-              <td class="px-3 py-6 text-center text-gray-500" colspan="4">—</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+        <div
+          v-for="(subnet, index) in subnets"
+          :key="index"
+          class="mb-2 grid grid-cols-12 items-center gap-2"
+        >
+          <Input
+            v-model:value="subnet.network"
+            class="col-span-3 font-mono text-xs"
+            :placeholder="$t('netboot.page.dhcp.network')"
+          />
+          <Input
+            v-model:value="subnet.rangeStart"
+            class="col-span-2 font-mono text-xs"
+            :placeholder="$t('netboot.page.dhcp.rangeStart')"
+          />
+          <Input
+            v-model:value="subnet.rangeEnd"
+            class="col-span-2 font-mono text-xs"
+            :placeholder="$t('netboot.page.dhcp.rangeEnd')"
+          />
+          <Input
+            v-model:value="subnet.gateway"
+            class="col-span-2 font-mono text-xs"
+            :placeholder="$t('netboot.page.dhcp.gateway')"
+          />
+          <Input
+            :value="dnsText(subnet)"
+            class="col-span-2 font-mono text-xs"
+            :placeholder="$t('netboot.page.dhcp.dns')"
+            @update:value="(v: string) => setDns(subnet, v)"
+          />
+          <Button danger type="text" size="small" class="col-span-1" @click="removeSubnet(index)">
+            {{ $t('netboot.page.dhcp.removeSubnet') }}
+          </Button>
+        </div>
+      </Card>
+
+      <!-- Active leases -->
+      <Card size="small" :title="$t('netboot.page.dhcp.leases')">
+        <Table
+          :columns="leaseColumns"
+          :data-source="leases"
+          :loading="loading"
+          :pagination="false"
+          row-key="ip"
+          size="middle"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'ip'">
+              <span class="font-mono text-xs">{{ record.ip }}</span>
+            </template>
+            <template v-else-if="column.key === 'mac'">
+              <span class="font-mono text-xs">{{ record.mac }}</span>
+            </template>
+            <template v-else-if="column.key === 'machine'">
+              {{ record.machineName || '—' }}
+            </template>
+            <template v-else-if="column.key === 'expiresAt'">
+              <span class="text-xs">{{ record.expiresAt }}</span>
+            </template>
+          </template>
+        </Table>
+      </Card>
     </div>
   </Page>
 </template>

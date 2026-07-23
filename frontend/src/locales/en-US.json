@@ -136,7 +136,8 @@
       "outcome": "Outcome",
       "detail": "Detail",
       "evidence": "Evidence",
-      "viewTimeline": "View Timeline"
+      "viewTimeline": "View Timeline",
+      "noEvents": "No events recorded for this session yet."
     },
     "dhcp": {
       "title": "DHCP",
@@ -148,6 +149,7 @@
       "version": "Config Version",
       "leaseTtl": "Lease TTL (seconds)",
       "subnets": "Subnets",
+      "noSubnets": "No subnets configured. Add one to hand out addresses.",
       "network": "Network (CIDR)",
       "rangeStart": "Range Start",
       "rangeEnd": "Range End",
