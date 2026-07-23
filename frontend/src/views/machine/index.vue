@@ -1,8 +1,20 @@
 <script lang="ts" setup>
 import { computed, onMounted, ref } from 'vue';
 
-import { Page } from 'shell/vben/common-ui';
+import { Page, useVbenDrawer } from 'shell/vben/common-ui';
 import { $t } from 'shell/locales';
+
+import {
+  Button,
+  Empty,
+  Input,
+  Modal,
+  Select,
+  SelectOption,
+  Table,
+  Tag,
+  notification,
+} from 'ant-design-vue';
 
 import { useNetbootMachineStore } from '../../stores/netboot-machine.state';
 import { useNetbootProfileStore } from '../../stores/netboot-profile.state';
@@ -17,15 +29,15 @@ const unknownBoots = ref<UnknownBoot[]>([]);
 const profiles = ref<Profile[]>([]);
 const total = ref(0);
 const loading = ref(false);
-const errorMessage = ref('');
 
 const page = ref(1);
 const pageSize = ref(20);
 const search = ref('');
 const stateFilter = ref<string>('');
 
-const drawerOpen = ref(false);
-const editing = ref<Machine | null>(null);
+const [MachineDrawerComponent, machineDrawerApi] = useVbenDrawer({
+  connectedComponent: MachineDrawer,
+});
 
 const profileNames = computed(() => {
   const byId = new Map<string, string>();
@@ -35,19 +47,30 @@ const profileNames = computed(() => {
   return byId;
 });
 
-/**
- * Machines mid-install are the ones an operator is usually watching, so they
- * are surfaced first regardless of the upstream ordering.
- */
+// Machines mid-install are what an operator is usually watching, so they sort
+// first, then failed, then the rest — regardless of upstream ordering.
 const orderedMachines = computed(() => {
-  const weight = (state?: ProvisionState) =>
-    state === 'PROVISION_STATE_INSTALLING' ? 0 : state === 'PROVISION_STATE_FAILED' ? 1 : 2;
-  return [...machines.value].sort((a, b) => weight(a.provisionState) - weight(b.provisionState));
+  const weight = (s?: ProvisionState) =>
+    s === 'PROVISION_STATE_INSTALLING' ? 0 : s === 'PROVISION_STATE_FAILED' ? 1 : 2;
+  return [...machines.value].sort(
+    (a, b) => weight(a.provisionState) - weight(b.provisionState),
+  );
 });
+
+const STATE_COLOR: Record<string, string> = {
+  PROVISION_STATE_NEW: 'default',
+  PROVISION_STATE_READY: 'blue',
+  PROVISION_STATE_INSTALLING: 'gold',
+  PROVISION_STATE_INSTALLED: 'green',
+  PROVISION_STATE_FAILED: 'red',
+};
+
+function stateLabel(s?: ProvisionState) {
+  return $t(`netboot.enum.provisionState.${s ?? 'PROVISION_STATE_UNSPECIFIED'}`);
+}
 
 async function load() {
   loading.value = true;
-  errorMessage.value = '';
   try {
     const [machinePage, bootPage, profilePage] = await Promise.all([
       machineStore.listMachines(
@@ -61,75 +84,88 @@ async function load() {
     total.value = machinePage.meta?.total ?? 0;
     unknownBoots.value = bootPage.boots ?? [];
     profiles.value = profilePage.profiles ?? [];
-  } catch (error) {
-    errorMessage.value = (error as Error).message || $t('netboot.common.loadFailed');
+  } catch (e) {
+    notification.error({ message: (e as Error).message || $t('netboot.common.loadFailed') });
   } finally {
     loading.value = false;
   }
 }
 
 function openCreate() {
-  editing.value = null;
-  drawerOpen.value = true;
+  machineDrawerApi.setData({ mode: 'create' });
+  machineDrawerApi.open();
 }
 
 function openEdit(machine: Machine) {
-  editing.value = machine;
-  drawerOpen.value = true;
+  machineDrawerApi.setData({ mode: 'edit', machine });
+  machineDrawerApi.open();
 }
 
-async function onSaved() {
-  drawerOpen.value = false;
-  await load();
+// Promoting an unknown boot is the same drawer in a dedicated mode, pre-seeded
+// with the MAC — no clumsy window.prompt for the name.
+function registerUnknown(boot: UnknownBoot) {
+  machineDrawerApi.setData({ mode: 'register-unknown', machine: { mac: boot.mac } });
+  machineDrawerApi.open();
 }
 
-// Provisioning erases the target's disks on its next boot, so it is always
-// confirmed explicitly rather than being a one-click action.
-async function provision(machine: Machine) {
+// Arming a machine erases its disks on the next boot, so it is always confirmed.
+function provision(machine: Machine) {
   if (!machine.id) return;
-  if (!window.confirm($t('netboot.page.machine.confirmProvision'))) return;
-  await machineStore.provisionMachine(machine.id);
-  await load();
+  Modal.confirm({
+    title: $t('netboot.page.machine.provision'),
+    content: $t('netboot.page.machine.confirmProvision'),
+    okType: 'danger',
+    async onOk() {
+      await machineStore.provisionMachine(machine.id!);
+      notification.success({ message: $t('netboot.page.machine.provisionSuccess') });
+      await load();
+    },
+  });
 }
 
-async function cancelProvision(machine: Machine) {
+function cancelProvision(machine: Machine) {
   if (!machine.id) return;
-  if (!window.confirm($t('netboot.page.machine.confirmCancel'))) return;
-  await machineStore.cancelProvision(machine.id);
-  await load();
+  Modal.confirm({
+    title: $t('netboot.page.machine.cancelProvision'),
+    content: $t('netboot.page.machine.confirmCancel'),
+    async onOk() {
+      await machineStore.cancelProvision(machine.id!);
+      notification.success({ message: $t('netboot.page.machine.cancelSuccess') });
+      await load();
+    },
+  });
 }
 
-async function remove(machine: Machine) {
+function remove(machine: Machine) {
   if (!machine.id) return;
-  if (!window.confirm($t('netboot.page.machine.confirmDelete'))) return;
-  await machineStore.deleteMachine(machine.id);
-  await load();
+  Modal.confirm({
+    title: $t('netboot.page.machine.delete'),
+    content: $t('netboot.page.machine.confirmDelete'),
+    okType: 'danger',
+    async onOk() {
+      await machineStore.deleteMachine(machine.id!);
+      notification.success({ message: $t('netboot.page.machine.deleteSuccess') });
+      await load();
+    },
+  });
 }
 
-async function registerUnknown(boot: UnknownBoot) {
-  if (!boot.mac) return;
-  const name = window.prompt($t('netboot.page.machine.name'), boot.mac.replace(/:/g, '-'));
-  if (!name) return;
-  await machineStore.registerUnknown(boot.mac, name);
-  await load();
-}
+const machineColumns = [
+  { title: $t('netboot.page.machine.name'), key: 'name' },
+  { title: $t('netboot.page.machine.mac'), key: 'mac' },
+  { title: $t('netboot.page.machine.firmware'), key: 'firmware' },
+  { title: $t('netboot.page.machine.profile'), key: 'profile' },
+  { title: $t('netboot.page.machine.reservationIp'), key: 'reservationIp' },
+  { title: $t('netboot.page.machine.state'), key: 'state' },
+  { title: $t('netboot.common.actions'), key: 'actions', width: 260 },
+];
 
-function stateLabel(state?: ProvisionState) {
-  return $t(`netboot.enum.provisionState.${state ?? 'PROVISION_STATE_UNSPECIFIED'}`);
-}
-
-function stateClass(state?: ProvisionState) {
-  switch (state) {
-    case 'PROVISION_STATE_INSTALLING':
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-    case 'PROVISION_STATE_INSTALLED':
-      return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-    case 'PROVISION_STATE_FAILED':
-      return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-    default:
-      return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
-  }
-}
+const bootColumns = [
+  { title: $t('netboot.page.machine.mac'), key: 'mac' },
+  { title: $t('netboot.page.machine.lastSeen'), key: 'lastSeen' },
+  { title: $t('netboot.page.machine.attempts'), key: 'attempts' },
+  { title: '', key: 'actions', width: 130 },
+];
 
 onMounted(load);
 </script>
@@ -137,153 +173,134 @@ onMounted(load);
 <template>
   <Page :title="$t('netboot.page.machine.title')">
     <div class="space-y-4">
-      <div v-if="errorMessage" class="rounded border border-red-300 bg-red-50 p-3 text-red-800">
-        {{ errorMessage }}
-      </div>
-
+      <!-- Toolbar -->
       <div class="flex flex-wrap items-center gap-2">
-        <input
-          v-model="search"
-          class="rounded border px-3 py-1.5"
+        <Input
+          v-model:value="search"
+          allow-clear
+          class="w-64"
           :placeholder="$t('netboot.page.machine.search')"
-          @keyup.enter="load"
+          @press-enter="load"
         />
-        <select v-model="stateFilter" class="rounded border px-3 py-1.5" @change="load">
-          <option value="">{{ $t('netboot.page.machine.state') }}</option>
-          <option value="PROVISION_STATE_NEW">{{ stateLabel('PROVISION_STATE_NEW') }}</option>
-          <option value="PROVISION_STATE_READY">{{ stateLabel('PROVISION_STATE_READY') }}</option>
-          <option value="PROVISION_STATE_INSTALLING">
+        <Select
+          v-model:value="stateFilter"
+          class="w-44"
+          :placeholder="$t('netboot.page.machine.state')"
+          allow-clear
+          @change="load"
+        >
+          <SelectOption value="PROVISION_STATE_NEW">{{ stateLabel('PROVISION_STATE_NEW') }}</SelectOption>
+          <SelectOption value="PROVISION_STATE_READY">{{ stateLabel('PROVISION_STATE_READY') }}</SelectOption>
+          <SelectOption value="PROVISION_STATE_INSTALLING">
             {{ stateLabel('PROVISION_STATE_INSTALLING') }}
-          </option>
-          <option value="PROVISION_STATE_INSTALLED">
+          </SelectOption>
+          <SelectOption value="PROVISION_STATE_INSTALLED">
             {{ stateLabel('PROVISION_STATE_INSTALLED') }}
-          </option>
-          <option value="PROVISION_STATE_FAILED">{{ stateLabel('PROVISION_STATE_FAILED') }}</option>
-        </select>
-        <button class="rounded border px-3 py-1.5" :disabled="loading" @click="load">
-          {{ $t('netboot.common.refresh') }}
-        </button>
-        <button class="rounded bg-primary px-3 py-1.5 text-white" @click="openCreate">
-          {{ $t('netboot.page.machine.create') }}
-        </button>
+          </SelectOption>
+          <SelectOption value="PROVISION_STATE_FAILED">{{ stateLabel('PROVISION_STATE_FAILED') }}</SelectOption>
+        </Select>
+        <Button :loading="loading" @click="load">{{ $t('netboot.common.refresh') }}</Button>
+        <Button type="primary" @click="openCreate">{{ $t('netboot.page.machine.create') }}</Button>
       </div>
 
-      <div class="overflow-x-auto rounded border">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-gray-50 dark:bg-gray-800">
-            <tr>
-              <th class="px-3 py-2">{{ $t('netboot.page.machine.name') }}</th>
-              <th class="px-3 py-2">{{ $t('netboot.page.machine.mac') }}</th>
-              <th class="px-3 py-2">{{ $t('netboot.page.machine.firmware') }}</th>
-              <th class="px-3 py-2">{{ $t('netboot.page.machine.profile') }}</th>
-              <th class="px-3 py-2">{{ $t('netboot.page.machine.reservationIp') }}</th>
-              <th class="px-3 py-2">{{ $t('netboot.page.machine.state') }}</th>
-              <th class="px-3 py-2">{{ $t('netboot.common.actions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="machine in orderedMachines" :key="machine.id" class="border-t">
-              <td class="px-3 py-2 font-medium">{{ machine.name }}</td>
-              <td class="px-3 py-2 font-mono text-xs">{{ machine.mac }}</td>
-              <td class="px-3 py-2">
-                {{ $t(`netboot.enum.firmware.${machine.firmware ?? 'FIRMWARE_UNSPECIFIED'}`) }}
-              </td>
-              <td class="px-3 py-2">
-                {{ machine.profileId ? profileNames.get(machine.profileId) : $t('netboot.common.none') }}
-              </td>
-              <td class="px-3 py-2 font-mono text-xs">{{ machine.reservationIp || '—' }}</td>
-              <td class="px-3 py-2">
-                <span class="rounded px-2 py-0.5 text-xs" :class="stateClass(machine.provisionState)">
-                  {{ stateLabel(machine.provisionState) }}
-                </span>
-              </td>
-              <td class="space-x-2 px-3 py-2">
-                <button class="text-primary" @click="openEdit(machine)">
-                  {{ $t('netboot.common.edit') }}
-                </button>
-                <button
-                  v-if="!machine.activeSessionId"
-                  class="text-amber-600"
-                  @click="provision(machine)"
-                >
-                  {{ $t('netboot.page.machine.provision') }}
-                </button>
-                <button v-else class="text-amber-600" @click="cancelProvision(machine)">
-                  {{ $t('netboot.page.machine.cancelProvision') }}
-                </button>
-                <button class="text-red-600" @click="remove(machine)">
-                  {{ $t('netboot.common.delete') }}
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!loading && orderedMachines.length === 0">
-              <td class="px-3 py-6 text-center text-gray-500" colspan="7">—</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="flex items-center justify-between text-sm">
-        <span>{{ total }}</span>
-        <div class="space-x-2">
-          <button
-            class="rounded border px-2 py-1"
-            :disabled="page <= 1"
-            @click="page -= 1; load()"
-          >
-            ‹
-          </button>
-          <span>{{ page }}</span>
-          <button
-            class="rounded border px-2 py-1"
-            :disabled="page * pageSize >= total"
-            @click="page += 1; load()"
-          >
-            ›
-          </button>
-        </div>
-      </div>
+      <!-- Machines -->
+      <Table
+        :columns="machineColumns"
+        :data-source="orderedMachines"
+        :loading="loading"
+        :pagination="{
+          current: page,
+          pageSize,
+          total,
+          showSizeChanger: false,
+          onChange: (p: number) => {
+            page = p;
+            load();
+          },
+        }"
+        row-key="id"
+        size="middle"
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.key === 'name'">
+            <span class="font-medium">{{ record.name }}</span>
+          </template>
+          <template v-else-if="column.key === 'mac'">
+            <span class="font-mono text-xs">{{ record.mac }}</span>
+          </template>
+          <template v-else-if="column.key === 'firmware'">
+            {{ $t(`netboot.enum.firmware.${record.firmware ?? 'FIRMWARE_UNSPECIFIED'}`) }}
+          </template>
+          <template v-else-if="column.key === 'profile'">
+            {{ record.profileId ? profileNames.get(record.profileId) : $t('netboot.common.none') }}
+          </template>
+          <template v-else-if="column.key === 'reservationIp'">
+            <span class="font-mono text-xs">{{ record.reservationIp || '—' }}</span>
+          </template>
+          <template v-else-if="column.key === 'state'">
+            <Tag :color="STATE_COLOR[record.provisionState] ?? 'default'">
+              {{ stateLabel(record.provisionState) }}
+            </Tag>
+          </template>
+          <template v-else-if="column.key === 'actions'">
+            <Button type="link" size="small" @click="openEdit(record)">
+              {{ $t('netboot.common.edit') }}
+            </Button>
+            <Button
+              v-if="!record.activeSessionId"
+              type="link"
+              size="small"
+              @click="provision(record)"
+            >
+              {{ $t('netboot.page.machine.provision') }}
+            </Button>
+            <Button v-else type="link" size="small" @click="cancelProvision(record)">
+              {{ $t('netboot.page.machine.cancelProvision') }}
+            </Button>
+            <Button type="link" size="small" danger @click="remove(record)">
+              {{ $t('netboot.common.delete') }}
+            </Button>
+          </template>
+        </template>
+      </Table>
 
       <!--
-        Unknown boots are a security signal as much as an inventory gap: a MAC
-        requesting boot that nobody registered is either a new machine or
-        something that should not be on the provisioning segment.
+        Unknown boots are a first-class security signal: a MAC that requested
+        boot but is registered to nobody is either a new machine to onboard or
+        something that should not be on the provisioning segment. Shown only
+        when present so it doesn't add noise to a clean inventory.
       -->
-      <div v-if="unknownBoots.length > 0" class="rounded border">
-        <div class="border-b bg-gray-50 px-3 py-2 font-medium dark:bg-gray-800">
-          {{ $t('netboot.page.machine.unknownBoots') }}
+      <div v-if="unknownBoots.length > 0" class="rounded-lg border border-amber-300 dark:border-amber-700">
+        <div class="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 dark:border-amber-800 dark:bg-amber-950">
+          <span class="font-medium">{{ $t('netboot.page.machine.unknownBoots') }}</span>
+          <Tag color="orange">{{ unknownBoots.length }}</Tag>
         </div>
-        <table class="w-full text-left text-sm">
-          <thead>
-            <tr>
-              <th class="px-3 py-2">{{ $t('netboot.page.machine.mac') }}</th>
-              <th class="px-3 py-2">{{ $t('netboot.page.machine.lastSeen') }}</th>
-              <th class="px-3 py-2">{{ $t('netboot.page.machine.attempts') }}</th>
-              <th class="px-3 py-2">{{ $t('netboot.common.actions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="boot in unknownBoots" :key="boot.mac" class="border-t">
-              <td class="px-3 py-2 font-mono text-xs">{{ boot.mac }}</td>
-              <td class="px-3 py-2">{{ boot.lastSeen }}</td>
-              <td class="px-3 py-2">{{ boot.attempts }}</td>
-              <td class="px-3 py-2">
-                <button class="text-primary" @click="registerUnknown(boot)">
-                  {{ $t('netboot.page.machine.register') }}
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="bootColumns"
+          :data-source="unknownBoots"
+          :pagination="false"
+          row-key="mac"
+          size="small"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'mac'">
+              <span class="font-mono text-xs">{{ record.mac }}</span>
+            </template>
+            <template v-else-if="column.key === 'lastSeen'">{{ record.lastSeen }}</template>
+            <template v-else-if="column.key === 'attempts'">{{ record.attempts }}</template>
+            <template v-else-if="column.key === 'actions'">
+              <Button type="primary" size="small" ghost @click="registerUnknown(record)">
+                {{ $t('netboot.page.machine.register') }}
+              </Button>
+            </template>
+          </template>
+          <template #emptyText>
+            <Empty :image="Empty.PRESENTED_IMAGE_SIMPLE" />
+          </template>
+        </Table>
       </div>
     </div>
 
-    <MachineDrawer
-      v-if="drawerOpen"
-      :machine="editing"
-      :profiles="profiles"
-      @close="drawerOpen = false"
-      @saved="onSaved"
-    />
+    <MachineDrawerComponent @saved="load" />
   </Page>
 </template>

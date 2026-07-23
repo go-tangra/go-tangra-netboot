@@ -1,4 +1,31 @@
 {
+  "rule": {
+    "macRequired": "MAC address is required",
+    "macInvalid": "Enter a MAC like aa:bb:cc:dd:ee:ff",
+    "nameRequired": "Name is required",
+    "nameInvalid": "Use letters, digits, hyphens, dots or underscores",
+    "ipInvalid": "Enter a valid IPv4 address",
+    "cidrRequired": "A production address is required",
+    "cidrInvalid": "Enter an address in CIDR form, e.g. 10.0.0.10/24",
+    "jsonInvalid": "Must be valid JSON",
+    "profileRequired": "A profile is required when registering an unknown boot",
+    "tooLong": "This value is too long"
+  },
+  "net": {
+    "inherit": "Inherit from profile",
+    "production": "Production network",
+    "advanced": "Advanced (netplan)",
+    "productionHelp": "Install over the provisioning NIC (DHCP), then bring it down and configure the production NIC statically as the only default route."
+  },
+  "section": {
+    "identity": "Identity",
+    "osLocale": "OS & Locale",
+    "access": "Access & Packages",
+    "advanced": "Advanced"
+  },
+  "hint": {
+    "onePerLine": "One entry per line."
+  },
   "menu": {
     "netboot": "Netboot",
     "machines": "Machines",
@@ -40,6 +67,7 @@
       "installDns": "DNS Servers",
       "create": "Register Machine",
       "edit": "Edit Machine",
+      "delete": "Delete Machine",
       "provision": "Provision",
       "cancelProvision": "Cancel Provisioning",
       "unknownBoots": "Unknown Boots",
@@ -81,6 +109,7 @@
       "assignedMachines": "Assigned Machines",
       "create": "Create Profile",
       "edit": "Edit Profile",
+      "delete": "Delete Profile",
       "clone": "Clone",
       "cloneName": "New profile name",
       "preview": "Preview Seed",

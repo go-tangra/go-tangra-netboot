@@ -1,40 +1,71 @@
 <script lang="ts" setup>
-import { reactive, ref } from 'vue';
+import { computed, ref } from 'vue';
 
+import { useVbenDrawer } from 'shell/vben/common-ui';
 import { $t } from 'shell/locales';
+
+import {
+  Button,
+  Checkbox,
+  Divider,
+  Form,
+  FormItem,
+  Input,
+  InputPassword,
+  Select,
+  SelectOption,
+  Textarea,
+  notification,
+} from 'ant-design-vue';
 
 import { useNetbootProfileStore } from '../../stores/netboot-profile.state';
 import type { Profile, ProfileInput } from '../../types';
 
-const props = defineProps<{ profile: Profile | null }>();
-const emit = defineEmits<{ close: []; saved: [] }>();
+const profileStore = useNetbootProfileStore();
 
-const store = useNetbootProfileStore();
-const saving = ref(false);
-const errorMessage = ref('');
+const emit = defineEmits<{ saved: [] }>();
 
-const isEdit = !!props.profile?.id;
+const data = ref<{ mode: 'create' | 'edit'; profile?: Profile }>();
+const loading = ref(false);
 
-const form = reactive({
-  name: props.profile?.name ?? '',
-  ubuntuRelease: props.profile?.ubuntuRelease ?? 'noble',
-  storageLayout: props.profile?.storageLayout ?? '',
-  networkConfig: props.profile?.networkConfig ?? '',
-  packages: (props.profile?.packages ?? []).join('\n'),
-  sshAuthorizedKeys: (props.profile?.sshAuthorizedKeys ?? []).join('\n'),
-  userDataTemplate: props.profile?.userDataTemplate ?? '',
-  lateCommands: (props.profile?.lateCommands ?? []).join('\n'),
-  kernelCmdlineExtra: props.profile?.kernelCmdlineExtra ?? '',
-  keyboardLayout: props.profile?.keyboardLayout ?? '',
-  locale: props.profile?.locale ?? '',
-  timezone: props.profile?.timezone ?? '',
-  installUsername: props.profile?.installUsername ?? '',
-  // Write-only. The existing password is never loaded into the form because
-  // the API does not return it; leaving this blank keeps it unchanged.
+// Ubuntu releases the netbootd instance ships artifacts for. A plain select is
+// friendlier (and less error-prone) than a free-text field.
+const releaseOptions = [
+  { value: 'noble', label: 'Ubuntu 24.04 (noble)' },
+  { value: 'jammy', label: 'Ubuntu 22.04 (jammy)' },
+];
+
+// Line-oriented lists are edited as textareas (one entry per line) and split on
+// save — far friendlier than a comma string for SSH keys and package lists.
+const formState = ref({
+  name: '',
+  ubuntuRelease: 'noble',
+  installUsername: '',
   password: '',
   clearPassword: false,
-  defaultDns: (props.profile?.defaultDns ?? []).join(', '),
+  keyboardLayout: '',
+  locale: '',
+  timezone: '',
+  packages: '',
+  sshAuthorizedKeys: '',
+  defaultDns: '',
+  storageLayout: '',
+  networkConfig: '',
+  lateCommands: '',
+  kernelCmdlineExtra: '',
+  userDataTemplate: '',
 });
+
+const isEdit = computed(() => data.value?.mode === 'edit');
+const hasExistingPassword = computed(() => !!data.value?.profile?.hasPassword);
+const title = computed(() =>
+  isEdit.value ? $t('netboot.page.profile.edit') : $t('netboot.page.profile.create'),
+);
+
+const nameRule = [
+  { required: true, message: $t('netboot.rule.nameRequired') },
+  { max: 255, message: $t('netboot.rule.tooLong') },
+];
 
 function splitLines(value: string): string[] {
   return value
@@ -45,182 +76,238 @@ function splitLines(value: string): string[] {
 
 function splitCommas(value: string): string[] {
   return value
-    .split(',')
+    .split(/[,\s]+/)
     .map((entry) => entry.trim())
     .filter(Boolean);
 }
 
-async function save() {
-  saving.value = true;
-  errorMessage.value = '';
+function resetForm() {
+  formState.value = {
+    name: '',
+    ubuntuRelease: 'noble',
+    installUsername: '',
+    password: '',
+    clearPassword: false,
+    keyboardLayout: '',
+    locale: '',
+    timezone: '',
+    packages: '',
+    sshAuthorizedKeys: '',
+    defaultDns: '',
+    storageLayout: '',
+    networkConfig: '',
+    lateCommands: '',
+    kernelCmdlineExtra: '',
+    userDataTemplate: '',
+  };
+}
+
+function hydrate(profile: Profile) {
+  resetForm();
+  formState.value.name = profile.name ?? '';
+  formState.value.ubuntuRelease = profile.ubuntuRelease ?? 'noble';
+  formState.value.installUsername = profile.installUsername ?? '';
+  formState.value.keyboardLayout = profile.keyboardLayout ?? '';
+  formState.value.locale = profile.locale ?? '';
+  formState.value.timezone = profile.timezone ?? '';
+  formState.value.packages = (profile.packages ?? []).join('\n');
+  formState.value.sshAuthorizedKeys = (profile.sshAuthorizedKeys ?? []).join('\n');
+  formState.value.defaultDns = (profile.defaultDns ?? []).join(', ');
+  formState.value.storageLayout = profile.storageLayout ?? '';
+  formState.value.networkConfig = profile.networkConfig ?? '';
+  formState.value.lateCommands = (profile.lateCommands ?? []).join('\n');
+  formState.value.kernelCmdlineExtra = profile.kernelCmdlineExtra ?? '';
+  formState.value.userDataTemplate = profile.userDataTemplate ?? '';
+}
+
+async function handleSubmit() {
+  loading.value = true;
   try {
     const payload: ProfileInput = {
-      name: form.name,
-      ubuntuRelease: form.ubuntuRelease,
-      storageLayout: form.storageLayout,
-      networkConfig: form.networkConfig,
-      packages: splitLines(form.packages),
-      sshAuthorizedKeys: splitLines(form.sshAuthorizedKeys),
-      userDataTemplate: form.userDataTemplate,
-      lateCommands: splitLines(form.lateCommands),
-      kernelCmdlineExtra: form.kernelCmdlineExtra,
-      keyboardLayout: form.keyboardLayout,
-      locale: form.locale,
-      timezone: form.timezone,
-      installUsername: form.installUsername,
-      clearPassword: form.clearPassword,
-      defaultDns: splitCommas(form.defaultDns),
+      name: formState.value.name.trim(),
+      ubuntuRelease: formState.value.ubuntuRelease,
+      installUsername: formState.value.installUsername.trim(),
+      keyboardLayout: formState.value.keyboardLayout.trim(),
+      locale: formState.value.locale.trim(),
+      timezone: formState.value.timezone.trim(),
+      packages: splitLines(formState.value.packages),
+      sshAuthorizedKeys: splitLines(formState.value.sshAuthorizedKeys),
+      defaultDns: splitCommas(formState.value.defaultDns),
+      storageLayout: formState.value.storageLayout.trim(),
+      networkConfig: formState.value.networkConfig.trim(),
+      lateCommands: splitLines(formState.value.lateCommands),
+      kernelCmdlineExtra: formState.value.kernelCmdlineExtra.trim(),
+      userDataTemplate: formState.value.userDataTemplate,
+      clearPassword: formState.value.clearPassword,
     };
-    // Only send the password when one was typed: an empty value means
-    // "leave it alone" upstream, and sending it explicitly is ambiguous.
-    if (form.password) {
-      payload.password = form.password;
-    }
+    // Only send the password when one was typed: an empty value means "keep the
+    // existing password" upstream, so sending it explicitly would be ambiguous.
+    if (formState.value.password) payload.password = formState.value.password;
 
-    if (isEdit && props.profile?.id) {
-      await store.updateProfile(props.profile.id, payload);
+    if (isEdit.value && data.value?.profile?.id) {
+      await profileStore.updateProfile(data.value.profile.id, payload);
+      notification.success({ message: $t('netboot.page.profile.updateSuccess') });
     } else {
-      await store.createProfile(payload);
+      await profileStore.createProfile(payload);
+      notification.success({ message: $t('netboot.page.profile.createSuccess') });
     }
     // Drop the plaintext from memory as soon as it has been sent.
-    form.password = '';
+    formState.value.password = '';
+    drawerApi.close();
     emit('saved');
-  } catch (error) {
-    errorMessage.value = (error as Error).message;
+  } catch (e) {
+    notification.error({ message: (e as Error).message || $t('netboot.common.loadFailed') });
   } finally {
-    saving.value = false;
+    loading.value = false;
   }
 }
+
+const [Drawer, drawerApi] = useVbenDrawer({
+  onCancel() {
+    drawerApi.close();
+  },
+  onOpenChange(isOpen: boolean) {
+    if (!isOpen) return;
+    data.value = drawerApi.getData() as { mode: 'create' | 'edit'; profile?: Profile };
+    if (data.value?.mode === 'edit' && data.value.profile) {
+      hydrate(data.value.profile);
+    } else {
+      resetForm();
+    }
+  },
+});
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 flex justify-end bg-black/30" @click.self="emit('close')">
-    <div class="h-full w-[40rem] overflow-y-auto bg-white p-6 dark:bg-gray-900">
-      <h2 class="mb-4 text-lg font-semibold">
-        {{ isEdit ? $t('netboot.page.profile.edit') : $t('netboot.page.profile.create') }}
-      </h2>
+  <Drawer :title="title" class="w-[640px]" :footer="false">
+    <Form layout="vertical" :model="formState" @finish="handleSubmit">
+      <Divider orientation="left">{{ $t('netboot.section.identity') }}</Divider>
 
-      <div v-if="errorMessage" class="mb-3 rounded border border-red-300 bg-red-50 p-2 text-red-800">
-        {{ errorMessage }}
+      <div class="grid grid-cols-2 gap-x-4">
+        <FormItem :label="$t('netboot.page.profile.name')" name="name" :rules="nameRule">
+          <Input v-model:value="formState.name" placeholder="ubuntu-noble-base" />
+        </FormItem>
+        <FormItem :label="$t('netboot.page.profile.ubuntuRelease')" name="ubuntuRelease">
+          <Select v-model:value="formState.ubuntuRelease">
+            <SelectOption v-for="o in releaseOptions" :key="o.value" :value="o.value">
+              {{ o.label }}
+            </SelectOption>
+          </Select>
+        </FormItem>
       </div>
 
-      <div class="space-y-3">
-        <label class="block">
-          <span class="text-sm">{{ $t('netboot.page.profile.name') }}</span>
-          <input v-model="form.name" class="mt-1 w-full rounded border px-3 py-1.5" />
-        </label>
+      <Divider orientation="left">{{ $t('netboot.section.osLocale') }}</Divider>
 
-        <label class="block">
-          <span class="text-sm">{{ $t('netboot.page.profile.ubuntuRelease') }}</span>
-          <input v-model="form.ubuntuRelease" class="mt-1 w-full rounded border px-3 py-1.5" />
-        </label>
-
-        <div class="grid grid-cols-2 gap-3">
-          <label class="block">
-            <span class="text-sm">{{ $t('netboot.page.profile.installUsername') }}</span>
-            <input v-model="form.installUsername" class="mt-1 w-full rounded border px-3 py-1.5" />
-          </label>
-          <label class="block">
-            <span class="text-sm">{{ $t('netboot.page.profile.keyboardLayout') }}</span>
-            <input v-model="form.keyboardLayout" class="mt-1 w-full rounded border px-3 py-1.5" />
-          </label>
-          <label class="block">
-            <span class="text-sm">{{ $t('netboot.page.profile.locale') }}</span>
-            <input v-model="form.locale" class="mt-1 w-full rounded border px-3 py-1.5" />
-          </label>
-          <label class="block">
-            <span class="text-sm">{{ $t('netboot.page.profile.timezone') }}</span>
-            <input v-model="form.timezone" class="mt-1 w-full rounded border px-3 py-1.5" />
-          </label>
-        </div>
-
-        <fieldset class="rounded border p-3">
-          <legend class="px-1 text-sm">{{ $t('netboot.page.profile.password') }}</legend>
-          <p class="mb-2 text-xs text-gray-500">{{ $t('netboot.page.profile.passwordHelp') }}</p>
-          <input
-            v-model="form.password"
-            type="password"
-            autocomplete="new-password"
-            class="w-full rounded border px-3 py-1.5"
-          />
-          <label v-if="isEdit && props.profile?.hasPassword" class="mt-2 flex items-center gap-2 text-sm">
-            <input v-model="form.clearPassword" type="checkbox" />
-            {{ $t('netboot.page.profile.clearPassword') }}
-          </label>
-        </fieldset>
-
-        <label class="block">
-          <span class="text-sm">{{ $t('netboot.page.profile.sshKeys') }}</span>
-          <textarea
-            v-model="form.sshAuthorizedKeys"
-            class="mt-1 w-full rounded border px-3 py-1.5 font-mono text-xs"
-            rows="3"
-          />
-        </label>
-
-        <label class="block">
-          <span class="text-sm">{{ $t('netboot.page.profile.packages') }}</span>
-          <textarea v-model="form.packages" class="mt-1 w-full rounded border px-3 py-1.5 font-mono text-xs" rows="3" />
-        </label>
-
-        <label class="block">
-          <span class="text-sm">{{ $t('netboot.page.profile.storageLayout') }}</span>
-          <textarea
-            v-model="form.storageLayout"
-            class="mt-1 w-full rounded border px-3 py-1.5 font-mono text-xs"
-            rows="3"
-          />
-        </label>
-
-        <label class="block">
-          <span class="text-sm">{{ $t('netboot.page.profile.networkConfig') }}</span>
-          <textarea
-            v-model="form.networkConfig"
-            class="mt-1 w-full rounded border px-3 py-1.5 font-mono text-xs"
-            rows="3"
-          />
-        </label>
-
-        <label class="block">
-          <span class="text-sm">{{ $t('netboot.page.profile.defaultDns') }}</span>
-          <input v-model="form.defaultDns" class="mt-1 w-full rounded border px-3 py-1.5 font-mono" />
-        </label>
-
-        <label class="block">
-          <span class="text-sm">{{ $t('netboot.page.profile.lateCommands') }}</span>
-          <textarea
-            v-model="form.lateCommands"
-            class="mt-1 w-full rounded border px-3 py-1.5 font-mono text-xs"
-            rows="3"
-          />
-        </label>
-
-        <label class="block">
-          <span class="text-sm">{{ $t('netboot.page.profile.kernelCmdline') }}</span>
-          <input
-            v-model="form.kernelCmdlineExtra"
-            class="mt-1 w-full rounded border px-3 py-1.5 font-mono text-xs"
-          />
-        </label>
-
-        <label class="block">
-          <span class="text-sm">{{ $t('netboot.page.profile.userDataTemplate') }}</span>
-          <textarea
-            v-model="form.userDataTemplate"
-            class="mt-1 w-full rounded border px-3 py-1.5 font-mono text-xs"
-            rows="6"
-          />
-        </label>
+      <div class="grid grid-cols-2 gap-x-4">
+        <FormItem :label="$t('netboot.page.profile.installUsername')" name="installUsername">
+          <Input v-model:value="formState.installUsername" placeholder="ubuntu" />
+        </FormItem>
+        <FormItem :label="$t('netboot.page.profile.keyboardLayout')" name="keyboardLayout">
+          <Input v-model:value="formState.keyboardLayout" placeholder="us" />
+        </FormItem>
+        <FormItem :label="$t('netboot.page.profile.locale')" name="locale">
+          <Input v-model:value="formState.locale" placeholder="en_US.UTF-8" />
+        </FormItem>
+        <FormItem :label="$t('netboot.page.profile.timezone')" name="timezone">
+          <Input v-model:value="formState.timezone" placeholder="UTC" />
+        </FormItem>
       </div>
 
-      <div class="mt-6 flex justify-end gap-2">
-        <button class="rounded border px-4 py-1.5" @click="emit('close')">
-          {{ $t('netboot.common.cancel') }}
-        </button>
-        <button class="rounded bg-primary px-4 py-1.5 text-white" :disabled="saving" @click="save">
+      <FormItem
+        :label="$t('netboot.page.profile.password')"
+        name="password"
+        :help="$t('netboot.page.profile.passwordHelp')"
+      >
+        <InputPassword
+          v-model:value="formState.password"
+          autocomplete="new-password"
+          :placeholder="
+            hasExistingPassword
+              ? $t('netboot.page.profile.passwordSet')
+              : $t('netboot.page.profile.passwordUnset')
+          "
+        />
+      </FormItem>
+      <FormItem v-if="isEdit && hasExistingPassword" name="clearPassword">
+        <Checkbox v-model:checked="formState.clearPassword">
+          {{ $t('netboot.page.profile.clearPassword') }}
+        </Checkbox>
+      </FormItem>
+
+      <Divider orientation="left">{{ $t('netboot.section.access') }}</Divider>
+
+      <FormItem
+        :label="$t('netboot.page.profile.sshKeys')"
+        name="sshAuthorizedKeys"
+        :help="$t('netboot.hint.onePerLine')"
+      >
+        <Textarea
+          v-model:value="formState.sshAuthorizedKeys"
+          :rows="3"
+          class="font-mono text-xs"
+          placeholder="ssh-ed25519 AAAA... operator@example"
+        />
+      </FormItem>
+
+      <FormItem
+        :label="$t('netboot.page.profile.packages')"
+        name="packages"
+        :help="$t('netboot.hint.onePerLine')"
+      >
+        <Textarea
+          v-model:value="formState.packages"
+          :rows="3"
+          class="font-mono text-xs"
+          placeholder="curl&#10;vim&#10;htop"
+        />
+      </FormItem>
+
+      <FormItem :label="$t('netboot.page.profile.defaultDns')" name="defaultDns">
+        <Input v-model:value="formState.defaultDns" class="font-mono" placeholder="10.0.0.53, 1.1.1.1" />
+      </FormItem>
+
+      <Divider orientation="left">{{ $t('netboot.section.advanced') }}</Divider>
+
+      <FormItem :label="$t('netboot.page.profile.storageLayout')" name="storageLayout">
+        <Textarea
+          v-model:value="formState.storageLayout"
+          :rows="2"
+          class="font-mono text-xs"
+          placeholder='{"mode":"lvm"}'
+        />
+      </FormItem>
+      <FormItem :label="$t('netboot.page.profile.networkConfig')" name="networkConfig">
+        <Textarea
+          v-model:value="formState.networkConfig"
+          :rows="2"
+          class="font-mono text-xs"
+          placeholder='{"version":2}'
+        />
+      </FormItem>
+      <FormItem
+        :label="$t('netboot.page.profile.lateCommands')"
+        name="lateCommands"
+        :help="$t('netboot.hint.onePerLine')"
+      >
+        <Textarea v-model:value="formState.lateCommands" :rows="2" class="font-mono text-xs" />
+      </FormItem>
+      <FormItem :label="$t('netboot.page.profile.kernelCmdline')" name="kernelCmdlineExtra">
+        <Input v-model:value="formState.kernelCmdlineExtra" class="font-mono" placeholder="console=ttyS0" />
+      </FormItem>
+      <FormItem :label="$t('netboot.page.profile.userDataTemplate')" name="userDataTemplate">
+        <Textarea
+          v-model:value="formState.userDataTemplate"
+          :rows="5"
+          class="font-mono text-xs"
+          placeholder="#cloud-config"
+        />
+      </FormItem>
+
+      <FormItem>
+        <Button type="primary" html-type="submit" :loading="loading" block>
           {{ $t('netboot.common.save') }}
-        </button>
-      </div>
-    </div>
-  </div>
+        </Button>
+      </FormItem>
+    </Form>
+  </Drawer>
 </template>
