@@ -1,0 +1,124 @@
+syntax = "proto3";
+
+package netboot.service.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+import "netboot/service/v1/common.proto";
+
+// Artifact Service - boot artifacts (kernels, initrds, iPXE binaries) and the
+// transfer log of the TFTP/HTTP boot path.
+//
+// Upload and replace are multipart HTTP endpoints on the upstream and are
+// deliberately not proxied: streaming multi-hundred-megabyte kernels through
+// the admin gateway would put unbounded memory pressure on this module.
+// Operators upload artifacts directly to the netbootd host.
+service NetbootArtifactService {
+  rpc ListArtifacts(ListArtifactsRequest) returns (ListArtifactsResponse) {
+    option (google.api.http) = {get: "/v1/artifacts"};
+  }
+
+  // Literal-path route before /{id} so "transfers" is not parsed as an id.
+  rpc ListTransfers(ListTransfersRequest) returns (ListTransfersResponse) {
+    option (google.api.http) = {get: "/v1/artifacts/transfers"};
+  }
+
+  rpc GetArtifact(GetArtifactRequest) returns (GetArtifactResponse) {
+    option (google.api.http) = {get: "/v1/artifacts/{id}"};
+  }
+
+  rpc DeleteArtifact(DeleteArtifactRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1/artifacts/{id}"};
+  }
+}
+
+enum ArtifactKind {
+  ARTIFACT_KIND_UNSPECIFIED = 0;
+  ARTIFACT_KIND_KERNEL = 1;
+  ARTIFACT_KIND_INITRD = 2;
+  ARTIFACT_KIND_IPXE_BIN = 3;
+  ARTIFACT_KIND_OTHER = 4;
+}
+
+enum TransferProtocol {
+  TRANSFER_PROTOCOL_UNSPECIFIED = 0;
+  TRANSFER_PROTOCOL_TFTP = 1;
+  TRANSFER_PROTOCOL_HTTP = 2;
+}
+
+message BootArtifact {
+  string id = 1 [json_name = "id"];
+  ArtifactKind kind = 2 [json_name = "kind"];
+  string ubuntu_release = 3 [json_name = "ubuntuRelease"];
+  string filename = 4 [json_name = "filename"];
+  int64 size_bytes = 5 [json_name = "sizeBytes"];
+  string sha256 = 6 [json_name = "sha256"];
+  string uploaded_by = 7 [json_name = "uploadedBy"];
+  google.protobuf.Timestamp create_time = 8 [json_name = "createTime"];
+  google.protobuf.Timestamp update_time = 9 [json_name = "updateTime"];
+}
+
+message ListArtifactsRequest {
+  PageRequest page = 1 [json_name = "page"];
+}
+
+message ListArtifactsResponse {
+  repeated BootArtifact artifacts = 1 [json_name = "artifacts"];
+  PageMeta meta = 2 [json_name = "meta"];
+}
+
+message GetArtifactRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]+$"
+    }
+  ];
+}
+
+message GetArtifactResponse {
+  BootArtifact artifact = 1 [json_name = "artifact"];
+}
+
+message DeleteArtifactRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]+$"
+    }
+  ];
+}
+
+message Transfer {
+  google.protobuf.Timestamp time = 1 [json_name = "time"];
+  string client_ip = 2 [json_name = "clientIp"];
+  string filename = 3 [json_name = "filename"];
+  int64 bytes_sent = 4 [json_name = "bytesSent"];
+  bool success = 5 [json_name = "success"];
+  string error = 6 [json_name = "error"];
+  TransferProtocol protocol = 7 [json_name = "protocol"];
+}
+
+message ListTransfersRequest {
+  PageRequest page = 1 [json_name = "page"];
+
+  optional string filename = 2 [
+    json_name = "filename",
+    (buf.validate.field).string = {max_len: 255}
+  ];
+}
+
+message ListTransfersResponse {
+  repeated Transfer transfers = 1 [json_name = "transfers"];
+  PageMeta meta = 2 [json_name = "meta"];
+}

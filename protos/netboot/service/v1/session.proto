@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package netboot.service.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/timestamp.proto";
+
+import "netboot/service/v1/common.proto";
+
+// Session Service - provisioning sessions and their event timelines.
+//
+// The upstream also exposes a server-sent-events stream at
+// GET /api/v1/events/stream. It is not expressible as a unary RPC and is not
+// proxied: the operator UI polls ListSessions instead, which keeps the
+// module stateless and avoids holding long-lived upstream connections open
+// on behalf of browser clients.
+service NetbootSessionService {
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse) {
+    option (google.api.http) = {get: "/v1/sessions"};
+  }
+
+  rpc GetSession(GetSessionRequest) returns (GetSessionResponse) {
+    option (google.api.http) = {get: "/v1/sessions/{id}"};
+  }
+}
+
+enum SessionState {
+  SESSION_STATE_UNSPECIFIED = 0;
+  SESSION_STATE_ACTIVE = 1;
+  SESSION_STATE_COMPLETED = 2;
+  SESSION_STATE_FAILED = 3;
+  SESSION_STATE_STALE = 4;
+}
+
+enum EventOutcome {
+  EVENT_OUTCOME_UNSPECIFIED = 0;
+  EVENT_OUTCOME_OK = 1;
+  EVENT_OUTCOME_ERROR = 2;
+  EVENT_OUTCOME_DENIED = 3;
+}
+
+message ProvisioningSession {
+  string id = 1 [json_name = "id"];
+  string machine_id = 2 [json_name = "machineId"];
+  string machine_name = 3 [json_name = "machineName"];
+  string machine_mac = 4 [json_name = "machineMac"];
+  string profile_id = 5 [json_name = "profileId"];
+  int32 profile_version = 6 [json_name = "profileVersion"];
+  SessionState state = 7 [json_name = "state"];
+  google.protobuf.Timestamp started_at = 8 [json_name = "startedAt"];
+  google.protobuf.Timestamp ended_at = 9 [json_name = "endedAt"];
+  string failure_phase = 10 [json_name = "failurePhase"];
+}
+
+message ProvisioningEvent {
+  google.protobuf.Timestamp time = 1 [json_name = "time"];
+  string session_id = 2 [json_name = "sessionId"];
+  string machine_mac = 3 [json_name = "machineMac"];
+  string phase = 4 [json_name = "phase"];
+  EventOutcome outcome = 5 [json_name = "outcome"];
+
+  // Opaque JSON detail as recorded upstream.
+  string detail = 6 [json_name = "detail"];
+}
+
+message ListSessionsRequest {
+  PageRequest page = 1 [json_name = "page"];
+
+  optional string machine_id = 2 [
+    json_name = "machineId",
+    (buf.validate.field).string = {
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]*$"
+    }
+  ];
+
+  optional SessionState state = 3 [json_name = "state"];
+}
+
+message ListSessionsResponse {
+  repeated ProvisioningSession sessions = 1 [json_name = "sessions"];
+  PageMeta meta = 2 [json_name = "meta"];
+}
+
+message GetSessionRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]+$"
+    }
+  ];
+}
+
+message GetSessionResponse {
+  ProvisioningSession session = 1 [json_name = "session"];
+  repeated ProvisioningEvent timeline = 2 [json_name = "timeline"];
+
+  // Opaque JSON evidence bundle as recorded upstream.
+  string evidence = 3 [json_name = "evidence"];
+}

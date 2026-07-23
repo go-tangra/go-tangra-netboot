@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package netboot.service.v1;
+
+import "buf/validate/validate.proto";
+
+// Pagination request shared by every list RPC.
+//
+// Page is 1-based; 0 means "first page". PageSize is capped server-side at
+// 200 to bound both our own memory use and the load we place on the upstream
+// netbootd instance.
+message PageRequest {
+  optional uint32 page = 1 [
+    json_name = "page",
+    (buf.validate.field).uint32 = {lte: 100000}
+  ];
+
+  optional uint32 page_size = 2 [
+    json_name = "pageSize",
+    (buf.validate.field).uint32 = {lte: 200}
+  ];
+}
+
+// Pagination metadata echoed back by every list RPC.
+message PageMeta {
+  int64 total = 1 [json_name = "total"];
+  int32 page = 2 [json_name = "page"];
+  int32 page_size = 3 [json_name = "pageSize"];
+}

@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package netboot.service.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+
+// System Service - health, build info, upstream connectivity and the
+// aggregate counters that back the Vben admin dashboard widgets.
+service NetbootSystemService {
+  rpc Health(google.protobuf.Empty) returns (HealthResponse) {
+    option (google.api.http) = {get: "/v1/health"};
+  }
+
+  rpc GetInfo(google.protobuf.Empty) returns (GetInfoResponse) {
+    option (google.api.http) = {get: "/v1/info"};
+  }
+
+  // Probes the configured netbootd instance.
+  rpc CheckUpstream(google.protobuf.Empty) returns (CheckUpstreamResponse) {
+    option (google.api.http) = {get: "/v1/upstream/check"};
+  }
+
+  rpc GetStats(GetStatsRequest) returns (GetStatsResponse) {
+    option (google.api.http) = {get: "/v1/stats"};
+  }
+}
+
+enum HealthStatus {
+  HEALTH_STATUS_UNSPECIFIED = 0;
+  HEALTH_STATUS_HEALTHY = 1;
+  HEALTH_STATUS_DEGRADED = 2;
+  HEALTH_STATUS_UNHEALTHY = 3;
+}
+
+message ComponentHealth {
+  HealthStatus status = 1 [json_name = "status"];
+  string message = 2 [json_name = "message"];
+}
+
+message HealthResponse {
+  HealthStatus status = 1 [json_name = "status"];
+  string message = 2 [json_name = "message"];
+  map<string, ComponentHealth> components = 3 [json_name = "components"];
+}
+
+message GetInfoResponse {
+  string version = 1 [json_name = "version"];
+  string build_time = 2 [json_name = "buildTime"];
+  string go_version = 3 [json_name = "goVersion"];
+  string git_commit = 4 [json_name = "gitCommit"];
+}
+
+message CheckUpstreamResponse {
+  bool connected = 1 [json_name = "connected"];
+
+  // Scheme + host of the configured netbootd instance. Never carries
+  // credentials, and is only exposed to authorized operators.
+  string endpoint = 2 [json_name = "endpoint"];
+
+  // Whether the transport to the upstream is TLS-protected.
+  bool tls = 3 [json_name = "tls"];
+
+  // Whether an operator session is currently established.
+  bool authenticated = 4 [json_name = "authenticated"];
+
+  int64 latency_ms = 5 [json_name = "latencyMs"];
+
+  string message = 6 [json_name = "message"];
+}
+
+message GetStatsRequest {}
+
+message GetStatsResponse {
+  int64 total_machines = 1 [json_name = "totalMachines"];
+  int64 installing_machines = 2 [json_name = "installingMachines"];
+  int64 installed_machines = 3 [json_name = "installedMachines"];
+  int64 failed_machines = 4 [json_name = "failedMachines"];
+  int64 total_profiles = 5 [json_name = "totalProfiles"];
+  int64 active_sessions = 6 [json_name = "activeSessions"];
+  int64 unknown_boots = 7 [json_name = "unknownBoots"];
+  int64 active_leases = 8 [json_name = "activeLeases"];
+  bool dhcp_enabled = 9 [json_name = "dhcpEnabled"];
+}

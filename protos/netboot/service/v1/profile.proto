@@ -1,0 +1,341 @@
+syntax = "proto3";
+
+package netboot.service.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "redact/v3/redact.proto";
+
+import "netboot/service/v1/common.proto";
+
+// Profile Service - installation profiles (autoinstall seed templates).
+service NetbootProfileService {
+  rpc ListProfiles(ListProfilesRequest) returns (ListProfilesResponse) {
+    option (google.api.http) = {get: "/v1/profiles"};
+  }
+
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse) {
+    option (google.api.http) = {get: "/v1/profiles/{id}"};
+  }
+
+  rpc CreateProfile(CreateProfileRequest) returns (CreateProfileResponse) {
+    option (google.api.http) = {
+      post: "/v1/profiles"
+      body: "*"
+    };
+  }
+
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse) {
+    option (google.api.http) = {
+      put: "/v1/profiles/{id}"
+      body: "*"
+    };
+  }
+
+  rpc CloneProfile(CloneProfileRequest) returns (CloneProfileResponse) {
+    option (google.api.http) = {
+      post: "/v1/profiles/{id}/clone"
+      body: "*"
+    };
+  }
+
+  rpc DeleteProfile(DeleteProfileRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1/profiles/{id}"};
+  }
+
+  // Renders the autoinstall seed for a profile. The upstream redacts
+  // credentials before returning; we never un-redact.
+  rpc PreviewProfile(PreviewProfileRequest) returns (PreviewProfileResponse) {
+    option (google.api.http) = {
+      post: "/v1/profiles/{id}/preview"
+      body: "*"
+    };
+  }
+}
+
+// Profile is an installation profile. The login password is never carried on
+// this message - only has_password reports whether one is set.
+message Profile {
+  string id = 1 [json_name = "id"];
+  string name = 2 [json_name = "name"];
+  int32 version = 3 [json_name = "version"];
+  string ubuntu_release = 4 [json_name = "ubuntuRelease"];
+
+  // JSON: {mode: lvm|direct|custom, custom: ...}
+  string storage_layout = 5 [json_name = "storageLayout"];
+
+  // JSON, netplan-shaped.
+  string network_config = 6 [json_name = "networkConfig"];
+
+  repeated string packages = 7 [json_name = "packages"];
+  repeated string ssh_authorized_keys = 8 [json_name = "sshAuthorizedKeys"];
+  string user_data_template = 9 [json_name = "userDataTemplate"];
+  repeated string late_commands = 10 [json_name = "lateCommands"];
+  string kernel_cmdline_extra = 11 [json_name = "kernelCmdlineExtra"];
+  google.protobuf.Timestamp create_time = 12 [json_name = "createTime"];
+  google.protobuf.Timestamp update_time = 13 [json_name = "updateTime"];
+  int64 assigned_machines = 14 [json_name = "assignedMachines"];
+  string keyboard_layout = 15 [json_name = "keyboardLayout"];
+  string keyboard_variant = 16 [json_name = "keyboardVariant"];
+  string locale = 17 [json_name = "locale"];
+  string timezone = 18 [json_name = "timezone"];
+  string install_username = 19 [json_name = "installUsername"];
+
+  // Whether a login password is set. The hash is never returned.
+  bool has_password = 20 [json_name = "hasPassword"];
+
+  repeated string default_dns = 21 [json_name = "defaultDns"];
+}
+
+// ProfileInput is the mutable body of a profile.
+message ProfileInput {
+  string name = 1 [
+    json_name = "name",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 255
+      pattern: "^[a-zA-Z0-9][a-zA-Z0-9\\-_\\.\\s]*$"
+    }
+  ];
+
+  string ubuntu_release = 2 [
+    json_name = "ubuntuRelease",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 32
+      pattern: "^[a-z][a-z0-9]*$"
+    }
+  ];
+
+  string storage_layout = 3 [
+    json_name = "storageLayout",
+    (buf.validate.field).string = {max_len: 65536}
+  ];
+
+  string network_config = 4 [
+    json_name = "networkConfig",
+    (buf.validate.field).string = {max_len: 65536}
+  ];
+
+  repeated string packages = 5 [
+    json_name = "packages",
+    (buf.validate.field).repeated = {
+      max_items: 512
+      items: {
+        string: {
+          max_len: 255
+          pattern: "^[a-zA-Z0-9][a-zA-Z0-9\\+\\-\\._:]*$"
+        }
+      }
+    }
+  ];
+
+  repeated string ssh_authorized_keys = 6 [
+    json_name = "sshAuthorizedKeys",
+    (buf.validate.field).repeated = {
+      max_items: 64
+      items: {
+        string: {max_len: 8192}
+      }
+    }
+  ];
+
+  string user_data_template = 7 [
+    json_name = "userDataTemplate",
+    (buf.validate.field).string = {max_len: 262144}
+  ];
+
+  repeated string late_commands = 8 [
+    json_name = "lateCommands",
+    (buf.validate.field).repeated = {
+      max_items: 128
+      items: {
+        string: {max_len: 4096}
+      }
+    }
+  ];
+
+  string kernel_cmdline_extra = 9 [
+    json_name = "kernelCmdlineExtra",
+    (buf.validate.field).string = {max_len: 4096}
+  ];
+
+  string keyboard_layout = 10 [
+    json_name = "keyboardLayout",
+    (buf.validate.field).string = {max_len: 32}
+  ];
+
+  string keyboard_variant = 11 [
+    json_name = "keyboardVariant",
+    (buf.validate.field).string = {max_len: 32}
+  ];
+
+  string locale = 12 [
+    json_name = "locale",
+    (buf.validate.field).string = {max_len: 32}
+  ];
+
+  string timezone = 13 [
+    json_name = "timezone",
+    (buf.validate.field).string = {max_len: 64}
+  ];
+
+  string install_username = 14 [
+    json_name = "installUsername",
+    (buf.validate.field).string = {
+      max_len: 32
+      pattern: "^[a-z_]?[a-z0-9_\\-]*$"
+    }
+  ];
+
+  // Plaintext login password. Hashed (sha512-crypt) by the upstream and never
+  // stored or returned in the clear. Empty on update keeps the existing
+  // password; set clear_password to remove it. Redacted from every log and
+  // audit record.
+  string password = 15 [
+    json_name = "password",
+    (buf.validate.field).string = {max_len: 1024},
+    (redact.v3.value).string = ""
+  ];
+
+  bool clear_password = 16 [json_name = "clearPassword"];
+
+  repeated string default_dns = 17 [
+    json_name = "defaultDns",
+    (buf.validate.field).repeated = {
+      max_items: 8
+      items: {
+        string: {max_len: 45}
+      }
+    }
+  ];
+}
+
+message ListProfilesRequest {
+  PageRequest page = 1 [json_name = "page"];
+}
+
+message ListProfilesResponse {
+  repeated Profile profiles = 1 [json_name = "profiles"];
+  PageMeta meta = 2 [json_name = "meta"];
+}
+
+message GetProfileRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]+$"
+    }
+  ];
+}
+
+message GetProfileResponse {
+  Profile profile = 1 [json_name = "profile"];
+}
+
+message CreateProfileRequest {
+  ProfileInput profile = 1 [
+    json_name = "profile",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).required = true
+  ];
+}
+
+message CreateProfileResponse {
+  Profile profile = 1 [json_name = "profile"];
+}
+
+message UpdateProfileRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]+$"
+    }
+  ];
+
+  ProfileInput profile = 2 [
+    json_name = "profile",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).required = true
+  ];
+}
+
+message UpdateProfileResponse {
+  Profile profile = 1 [json_name = "profile"];
+}
+
+message CloneProfileRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]+$"
+    }
+  ];
+
+  string new_name = 2 [
+    json_name = "newName",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 255
+      pattern: "^[a-zA-Z0-9][a-zA-Z0-9\\-_\\.\\s]*$"
+    }
+  ];
+}
+
+message CloneProfileResponse {
+  Profile profile = 1 [json_name = "profile"];
+}
+
+message DeleteProfileRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]+$"
+    }
+  ];
+}
+
+message PreviewProfileRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]+$"
+    }
+  ];
+
+  // Optional; a fixture machine is used when empty.
+  string machine_id = 2 [
+    json_name = "machineId",
+    (buf.validate.field).string = {
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]*$"
+    }
+  ];
+}
+
+message PreviewProfileResponse {
+  // Rendered autoinstall YAML with credentials already redacted upstream.
+  string user_data = 1 [json_name = "userData"];
+  string cmdline = 2 [json_name = "cmdline"];
+}

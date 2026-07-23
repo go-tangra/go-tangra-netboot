@@ -1,0 +1,181 @@
+syntax = "proto3";
+
+package netboot.service.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+import "netboot/service/v1/common.proto";
+
+// DHCP Service - the authoritative DHCP configuration of the upstream
+// netbootd, its active leases, and any foreign DHCP servers it has observed
+// on the provisioning segment.
+service NetbootDhcpService {
+  rpc GetDhcpConfig(GetDhcpConfigRequest) returns (GetDhcpConfigResponse) {
+    option (google.api.http) = {get: "/v1/dhcp/config"};
+  }
+
+  rpc UpdateDhcpConfig(UpdateDhcpConfigRequest) returns (UpdateDhcpConfigResponse) {
+    option (google.api.http) = {
+      put: "/v1/dhcp/config"
+      body: "*"
+    };
+  }
+
+  rpc EnableDhcp(EnableDhcpRequest) returns (EnableDhcpResponse) {
+    option (google.api.http) = {
+      post: "/v1/dhcp/enable"
+      body: "*"
+    };
+  }
+
+  rpc DisableDhcp(DisableDhcpRequest) returns (DisableDhcpResponse) {
+    option (google.api.http) = {
+      post: "/v1/dhcp/disable"
+      body: "*"
+    };
+  }
+
+  rpc ListLeases(ListLeasesRequest) returns (ListLeasesResponse) {
+    option (google.api.http) = {get: "/v1/dhcp/leases"};
+  }
+
+  rpc ListForeignServers(ListForeignServersRequest) returns (ListForeignServersResponse) {
+    option (google.api.http) = {get: "/v1/dhcp/conflicts"};
+  }
+}
+
+message DhcpSubnet {
+  string id = 1 [
+    json_name = "id",
+    (buf.validate.field).string = {
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]*$"
+    }
+  ];
+
+  // Network in CIDR form, e.g. 10.10.0.0/24.
+  string network = 2 [
+    json_name = "network",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 9
+      max_len: 43
+    }
+  ];
+
+  string range_start = 3 [
+    json_name = "rangeStart",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 7
+      max_len: 45
+    }
+  ];
+
+  string range_end = 4 [
+    json_name = "rangeEnd",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 7
+      max_len: 45
+    }
+  ];
+
+  string gateway = 5 [
+    json_name = "gateway",
+    (buf.validate.field).string = {max_len: 45}
+  ];
+
+  repeated string dns = 6 [
+    json_name = "dns",
+    (buf.validate.field).repeated = {
+      max_items: 8
+      items: {
+        string: {max_len: 45}
+      }
+    }
+  ];
+}
+
+message DhcpConfig {
+  bool enabled = 1 [json_name = "enabled"];
+  int32 version = 2 [json_name = "version"];
+  int32 lease_ttl_seconds = 3 [json_name = "leaseTtlSeconds"];
+  repeated DhcpSubnet subnets = 4 [json_name = "subnets"];
+  google.protobuf.Timestamp update_time = 5 [json_name = "updateTime"];
+}
+
+message GetDhcpConfigRequest {}
+
+message GetDhcpConfigResponse {
+  DhcpConfig config = 1 [json_name = "config"];
+}
+
+message UpdateDhcpConfigRequest {
+  // Lease lifetime; bounded to sane values (1 minute .. 7 days).
+  int32 lease_ttl_seconds = 1 [
+    json_name = "leaseTtlSeconds",
+    (buf.validate.field).int32 = {
+      gte: 60
+      lte: 604800
+    }
+  ];
+
+  repeated DhcpSubnet subnets = 2 [
+    json_name = "subnets",
+    (buf.validate.field).repeated = {max_items: 64}
+  ];
+}
+
+message UpdateDhcpConfigResponse {
+  DhcpConfig config = 1 [json_name = "config"];
+}
+
+message EnableDhcpRequest {}
+
+message EnableDhcpResponse {
+  DhcpConfig config = 1 [json_name = "config"];
+}
+
+message DisableDhcpRequest {}
+
+message DisableDhcpResponse {
+  DhcpConfig config = 1 [json_name = "config"];
+}
+
+message Lease {
+  string ip = 1 [json_name = "ip"];
+  string mac = 2 [json_name = "mac"];
+  string machine_id = 3 [json_name = "machineId"];
+  string machine_name = 4 [json_name = "machineName"];
+  google.protobuf.Timestamp expires_at = 5 [json_name = "expiresAt"];
+}
+
+message ListLeasesRequest {
+  PageRequest page = 1 [json_name = "page"];
+}
+
+message ListLeasesResponse {
+  repeated Lease leases = 1 [json_name = "leases"];
+  PageMeta meta = 2 [json_name = "meta"];
+}
+
+// ForeignServer is a rogue/unexpected DHCP server seen on the segment.
+message ForeignServer {
+  string server_id = 1 [json_name = "serverId"];
+  google.protobuf.Timestamp last_seen = 2 [json_name = "lastSeen"];
+  int64 offers_seen = 3 [json_name = "offersSeen"];
+}
+
+message ListForeignServersRequest {
+  PageRequest page = 1 [json_name = "page"];
+}
+
+message ListForeignServersResponse {
+  repeated ForeignServer servers = 1 [json_name = "servers"];
+  PageMeta meta = 2 [json_name = "meta"];
+}

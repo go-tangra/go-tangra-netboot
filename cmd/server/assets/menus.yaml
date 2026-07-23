@@ -1,0 +1,254 @@
+# Netboot Module Menu Definitions
+# Defines the Vben admin menu structure, dashboard widgets, permissions and
+# roles for the Netboot (network provisioning) module. Consumed by the admin
+# service at module registration time.
+
+module:
+  id: netboot
+  name: Netboot
+  description: Network Provisioning and Bare-Metal Installation
+
+menus:
+  - id: netboot
+    parent_id: null
+    type: CATALOG
+    name: Netboot
+    path: /netboot
+    icon: lucide:server-cog
+    order: 430
+    authority:
+      - platform:admin
+      - tenant:manager
+
+  - id: netboot-machines
+    parent_id: netboot
+    type: MENU
+    name: Machines
+    path: machine
+    component: app/netboot/machine/index.vue
+    icon: lucide:hard-drive
+    order: 1
+    authority:
+      - platform:admin
+      - tenant:manager
+
+  - id: netboot-profiles
+    parent_id: netboot
+    type: MENU
+    name: Profiles
+    path: profile
+    component: app/netboot/profile/index.vue
+    icon: lucide:file-cog
+    order: 2
+    authority:
+      - platform:admin
+      - tenant:manager
+
+  - id: netboot-sessions
+    parent_id: netboot
+    type: MENU
+    name: Sessions
+    path: session
+    component: app/netboot/session/index.vue
+    icon: lucide:activity
+    order: 3
+    authority:
+      - platform:admin
+      - tenant:manager
+
+  - id: netboot-dhcp
+    parent_id: netboot
+    type: MENU
+    name: DHCP
+    path: dhcp
+    component: app/netboot/dhcp/index.vue
+    icon: lucide:network
+    order: 4
+    authority:
+      - platform:admin
+      - tenant:manager
+
+  - id: netboot-artifacts
+    parent_id: netboot
+    type: MENU
+    name: Boot Artifacts
+    path: artifact
+    component: app/netboot/artifact/index.vue
+    icon: lucide:package
+    order: 5
+    authority:
+      - platform:admin
+      - tenant:manager
+
+dashboard_widgets:
+  - id: netboot.total_machines
+    name: Netboot Machines
+    description: Registered netboot targets
+    icon: lucide:hard-drive
+    widget_type: stat_card
+    data_source:
+      endpoint: /admin/v1/modules/netboot/v1/stats
+      method: GET
+    data_mapping:
+      value_path: totalMachines
+      label: Machines
+    default_size:
+      width: 3
+      height: 1
+    tags: [netboot, overview]
+    authority: [platform:admin, tenant:manager]
+
+  - id: netboot.installing
+    name: Installing
+    description: Machines currently being provisioned
+    icon: lucide:loader
+    widget_type: stat_card
+    data_source:
+      endpoint: /admin/v1/modules/netboot/v1/stats
+      method: GET
+    data_mapping:
+      value_path: installingMachines
+      total_path: totalMachines
+      label: Installing
+    default_size:
+      width: 3
+      height: 1
+    tags: [netboot, overview]
+    authority: [platform:admin, tenant:manager]
+
+  - id: netboot.failed
+    name: Failed Installs
+    description: Machines whose last provisioning attempt failed
+    icon: lucide:alert-triangle
+    widget_type: stat_card
+    data_source:
+      endpoint: /admin/v1/modules/netboot/v1/stats
+      method: GET
+    data_mapping:
+      value_path: failedMachines
+      label: Failed
+    default_size:
+      width: 3
+      height: 1
+    tags: [netboot, overview]
+    authority: [platform:admin, tenant:manager]
+
+  - id: netboot.unknown_boots
+    name: Unknown Boots
+    description: Unregistered MACs that attempted to netboot
+    icon: lucide:help-circle
+    widget_type: stat_card
+    data_source:
+      endpoint: /admin/v1/modules/netboot/v1/stats
+      method: GET
+    data_mapping:
+      value_path: unknownBoots
+      label: Unknown Boots
+    default_size:
+      width: 3
+      height: 1
+    tags: [netboot, security]
+    authority: [platform:admin, tenant:manager]
+
+permission_groups:
+  - name: Netboot
+    module: netboot
+    description: Netboot Provisioning Permissions
+    permissions:
+      - name: View Machines
+        code: netboot.machine.view
+        description: List and inspect netboot machines
+      - name: Create Machines
+        code: netboot.machine.create
+        description: Register new machines and promote unknown boots
+      - name: Update Machines
+        code: netboot.machine.update
+        description: Change machine metadata, profile assignment and networking
+      - name: Delete Machines
+        code: netboot.machine.delete
+        description: Remove machines from the netboot inventory
+      - name: Provision Machines
+        code: netboot.machine.provision
+        description: Arm a machine for reinstallation, or cancel one in flight
+      - name: View Profiles
+        code: netboot.profile.view
+        description: List and inspect installation profiles
+      - name: Create Profiles
+        code: netboot.profile.create
+        description: Create and clone installation profiles
+      - name: Update Profiles
+        code: netboot.profile.update
+        description: Modify installation profiles and render seed previews
+      - name: Delete Profiles
+        code: netboot.profile.delete
+        description: Delete installation profiles
+      - name: View DHCP
+        code: netboot.dhcp.view
+        description: Inspect DHCP configuration, leases and conflicts
+      - name: Manage DHCP
+        code: netboot.dhcp.manage
+        description: Change the DHCP scope and enable or disable the server
+      - name: View Sessions
+        code: netboot.session.view
+        description: Inspect provisioning sessions and their timelines
+      - name: View Artifacts
+        code: netboot.artifact.view
+        description: List boot artifacts and boot-path transfers
+      - name: Delete Artifacts
+        code: netboot.artifact.delete
+        description: Delete kernels, initrds and iPXE binaries
+      - name: View System Status
+        code: netboot.system.view
+        description: Inspect upstream connectivity and dashboard statistics
+
+roles:
+  - name: Netboot Administrator
+    code: netboot.admin
+    description: Full access to the Netboot module, including DHCP and artifacts
+    is_system: true
+    permissions:
+      - netboot.machine.view
+      - netboot.machine.create
+      - netboot.machine.update
+      - netboot.machine.delete
+      - netboot.machine.provision
+      - netboot.profile.view
+      - netboot.profile.create
+      - netboot.profile.update
+      - netboot.profile.delete
+      - netboot.dhcp.view
+      - netboot.dhcp.manage
+      - netboot.session.view
+      - netboot.artifact.view
+      - netboot.artifact.delete
+      - netboot.system.view
+
+  - name: Netboot Operator
+    code: netboot.operator
+    description: Can register and provision machines and edit profiles, but cannot
+      reconfigure DHCP or delete machines, profiles or boot artifacts
+    is_system: true
+    permissions:
+      - netboot.machine.view
+      - netboot.machine.create
+      - netboot.machine.update
+      - netboot.machine.provision
+      - netboot.profile.view
+      - netboot.profile.create
+      - netboot.profile.update
+      - netboot.dhcp.view
+      - netboot.session.view
+      - netboot.artifact.view
+      - netboot.system.view
+
+  - name: Netboot Viewer
+    code: netboot.viewer
+    description: Read-only access to the Netboot module
+    is_system: true
+    permissions:
+      - netboot.machine.view
+      - netboot.profile.view
+      - netboot.dhcp.view
+      - netboot.session.view
+      - netboot.artifact.view
+      - netboot.system.view

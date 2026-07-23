@@ -1,0 +1,30 @@
+# Netboot Module Configuration
+#
+# The upstream netbootd connection is configured entirely through the
+# environment so that credentials never live in a config file that might be
+# baked into an image or committed. The keys below document the contract;
+# see internal/netbootd/config.go for the authoritative list.
+#
+#   NETBOOTD_ENDPOINT               https://netbootd.example.internal:8080
+#   NETBOOTD_USERNAME               operator account on the netbootd instance
+#   NETBOOTD_PASSWORD               that account's password (prefer the file form)
+#   NETBOOTD_PASSWORD_FILE          path to a mounted secret holding the password
+#   NETBOOTD_CA_FILE                PEM bundle used to verify the upstream cert
+#   NETBOOTD_TIMEOUT                per-request timeout, default 15s
+#   NETBOOTD_MAX_RETRIES            retries for idempotent requests, default 2
+#   NETBOOTD_MAX_RESPONSE_BYTES     response size cap, default 8388608
+#   NETBOOTD_ALLOW_PLAINTEXT        set true to permit an http:// upstream
+#   NETBOOTD_INSECURE_SKIP_VERIFY   development only; requires ALLOW_PLAINTEXT
+#
+# Ports:
+#   10000  gRPC (module API, mTLS)
+#   10001  HTTP (federated frontend + descriptors)   NETBOOT_HTTP_ADDR
+#   10010  Prometheus metrics                        METRICS_ADDR
+
+netboot:
+  upstream:
+    # Documented here for discoverability; the effective values come from the
+    # environment variables above.
+    timeout: 15s
+    max_retries: 2
+    max_response_bytes: 8388608

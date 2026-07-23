@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package netboot.service.v1;
+
+import "errors/errors.proto";
+
+// NetbootErrorReason is the module's error vocabulary. Reasons in the low
+// ranges are raised locally (validation, authorization, configuration); the
+// UPSTREAM_* reasons carry a failure that originated in the remote netbootd
+// instance, already stripped of any internal detail.
+enum NetbootErrorReason {
+  option (errors.default_code) = 500;
+
+  // 400 - Bad Request
+  BAD_REQUEST = 0 [(errors.code) = 400];
+  INVALID_MAC = 1 [(errors.code) = 400];
+  INVALID_IP = 2 [(errors.code) = 400];
+  INVALID_CIDR = 3 [(errors.code) = 400];
+  INVALID_PROFILE = 4 [(errors.code) = 400];
+  INVALID_ARGUMENT = 5 [(errors.code) = 400];
+
+  // 401 - Unauthorized
+  UNAUTHORIZED = 100 [(errors.code) = 401];
+  UPSTREAM_UNAUTHENTICATED = 101 [(errors.code) = 401];
+
+  // 403 - Forbidden
+  FORBIDDEN = 300 [(errors.code) = 403];
+  ACCESS_DENIED = 301 [(errors.code) = 403];
+  INSUFFICIENT_PERMISSIONS = 302 [(errors.code) = 403];
+
+  // 404 - Not Found
+  NOT_FOUND = 400 [(errors.code) = 404];
+  MACHINE_NOT_FOUND = 401 [(errors.code) = 404];
+  PROFILE_NOT_FOUND = 402 [(errors.code) = 404];
+  SESSION_NOT_FOUND = 403 [(errors.code) = 404];
+  ARTIFACT_NOT_FOUND = 404 [(errors.code) = 404];
+
+  // 409 - Conflict
+  CONFLICT = 900 [(errors.code) = 409];
+  MACHINE_ALREADY_EXISTS = 901 [(errors.code) = 409];
+  PROFILE_ALREADY_EXISTS = 902 [(errors.code) = 409];
+  SESSION_ACTIVE = 903 [(errors.code) = 409];
+
+  // 412 - Precondition Failed
+  DHCP_DISABLED = 1200 [(errors.code) = 412];
+
+  // 422 - Unprocessable Entity
+  VALIDATION_FAILED = 1400 [(errors.code) = 422];
+
+  // 429 - Too Many Requests
+  RATE_LIMITED = 1600 [(errors.code) = 429];
+
+  // 500 - Internal Server Error
+  INTERNAL_SERVER_ERROR = 2000 [(errors.code) = 500];
+  UPSTREAM_ERROR = 2001 [(errors.code) = 500];
+  CONFIGURATION_ERROR = 2002 [(errors.code) = 500];
+
+  // 502 / 503 / 504 - Upstream transport failures
+  UPSTREAM_BAD_GATEWAY = 2200 [(errors.code) = 502];
+  UPSTREAM_UNAVAILABLE = 2300 [(errors.code) = 503];
+  UPSTREAM_TIMEOUT = 2400 [(errors.code) = 504];
+}

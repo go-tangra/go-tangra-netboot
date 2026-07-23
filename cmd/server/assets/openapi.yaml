@@ -1,0 +1,1459 @@
+# Generated with protoc-gen-openapi
+# https://github.com/google/gnostic/tree/master/cmd/protoc-gen-openapi
+
+openapi: 3.0.3
+info:
+    title: ""
+    version: 0.0.1
+paths:
+    /v1/artifacts:
+        get:
+            tags:
+                - NetbootArtifactService
+            operationId: NetbootArtifactService_ListArtifacts
+            parameters:
+                - name: page.page
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+                - name: page.pageSize
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListArtifactsResponse'
+    /v1/artifacts/transfers:
+        get:
+            tags:
+                - NetbootArtifactService
+            description: Literal-path route before /{id} so "transfers" is not parsed as an id.
+            operationId: NetbootArtifactService_ListTransfers
+            parameters:
+                - name: page.page
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+                - name: page.pageSize
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+                - name: filename
+                  in: query
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListTransfersResponse'
+    /v1/artifacts/{id}:
+        get:
+            tags:
+                - NetbootArtifactService
+            operationId: NetbootArtifactService_GetArtifact
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GetArtifactResponse'
+        delete:
+            tags:
+                - NetbootArtifactService
+            operationId: NetbootArtifactService_DeleteArtifact
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+    /v1/dhcp/config:
+        get:
+            tags:
+                - NetbootDhcpService
+            operationId: NetbootDhcpService_GetDhcpConfig
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GetDhcpConfigResponse'
+        put:
+            tags:
+                - NetbootDhcpService
+            operationId: NetbootDhcpService_UpdateDhcpConfig
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateDhcpConfigRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateDhcpConfigResponse'
+    /v1/dhcp/conflicts:
+        get:
+            tags:
+                - NetbootDhcpService
+            operationId: NetbootDhcpService_ListForeignServers
+            parameters:
+                - name: page.page
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+                - name: page.pageSize
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListForeignServersResponse'
+    /v1/dhcp/disable:
+        post:
+            tags:
+                - NetbootDhcpService
+            operationId: NetbootDhcpService_DisableDhcp
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/DisableDhcpRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/DisableDhcpResponse'
+    /v1/dhcp/enable:
+        post:
+            tags:
+                - NetbootDhcpService
+            operationId: NetbootDhcpService_EnableDhcp
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/EnableDhcpRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/EnableDhcpResponse'
+    /v1/dhcp/leases:
+        get:
+            tags:
+                - NetbootDhcpService
+            operationId: NetbootDhcpService_ListLeases
+            parameters:
+                - name: page.page
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+                - name: page.pageSize
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListLeasesResponse'
+    /v1/health:
+        get:
+            tags:
+                - NetbootSystemService
+            operationId: NetbootSystemService_Health
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/HealthResponse'
+    /v1/info:
+        get:
+            tags:
+                - NetbootSystemService
+            operationId: NetbootSystemService_GetInfo
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GetInfoResponse'
+    /v1/machines:
+        get:
+            tags:
+                - NetbootMachineService
+            operationId: NetbootMachineService_ListMachines
+            parameters:
+                - name: page.page
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+                - name: page.pageSize
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+                - name: state
+                  in: query
+                  schema:
+                    enum:
+                        - PROVISION_STATE_UNSPECIFIED
+                        - PROVISION_STATE_NEW
+                        - PROVISION_STATE_READY
+                        - PROVISION_STATE_INSTALLING
+                        - PROVISION_STATE_INSTALLED
+                        - PROVISION_STATE_FAILED
+                    type: string
+                    format: enum
+                - name: profileId
+                  in: query
+                  schema:
+                    type: string
+                - name: q
+                  in: query
+                  description: Free-text substring match over name and MAC.
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListMachinesResponse'
+        post:
+            tags:
+                - NetbootMachineService
+            operationId: NetbootMachineService_CreateMachine
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateMachineRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreateMachineResponse'
+    /v1/machines/register-unknown:
+        post:
+            tags:
+                - NetbootMachineService
+            operationId: NetbootMachineService_RegisterUnknownMachine
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/RegisterUnknownMachineRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/RegisterUnknownMachineResponse'
+    /v1/machines/unknown:
+        get:
+            tags:
+                - NetbootMachineService
+            description: |-
+                Literal-path routes are declared before the /{id} route so the router
+                 matches them first (otherwise "unknown" is parsed as an id).
+            operationId: NetbootMachineService_ListUnknownBoots
+            parameters:
+                - name: page.page
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+                - name: page.pageSize
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListUnknownBootsResponse'
+    /v1/machines/{id}:
+        get:
+            tags:
+                - NetbootMachineService
+            operationId: NetbootMachineService_GetMachine
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GetMachineResponse'
+        delete:
+            tags:
+                - NetbootMachineService
+            operationId: NetbootMachineService_DeleteMachine
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+        patch:
+            tags:
+                - NetbootMachineService
+            operationId: NetbootMachineService_UpdateMachine
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateMachineRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateMachineResponse'
+    /v1/machines/{id}/cancel:
+        post:
+            tags:
+                - NetbootMachineService
+            operationId: NetbootMachineService_CancelProvision
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CancelProvisionRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CancelProvisionResponse'
+    /v1/machines/{id}/provision:
+        post:
+            tags:
+                - NetbootMachineService
+            operationId: NetbootMachineService_ProvisionMachine
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/ProvisionMachineRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ProvisionMachineResponse'
+    /v1/profiles:
+        get:
+            tags:
+                - NetbootProfileService
+            operationId: NetbootProfileService_ListProfiles
+            parameters:
+                - name: page.page
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+                - name: page.pageSize
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListProfilesResponse'
+        post:
+            tags:
+                - NetbootProfileService
+            operationId: NetbootProfileService_CreateProfile
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateProfileRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CreateProfileResponse'
+    /v1/profiles/{id}:
+        get:
+            tags:
+                - NetbootProfileService
+            operationId: NetbootProfileService_GetProfile
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GetProfileResponse'
+        put:
+            tags:
+                - NetbootProfileService
+            operationId: NetbootProfileService_UpdateProfile
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/UpdateProfileRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/UpdateProfileResponse'
+        delete:
+            tags:
+                - NetbootProfileService
+            operationId: NetbootProfileService_DeleteProfile
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+    /v1/profiles/{id}/clone:
+        post:
+            tags:
+                - NetbootProfileService
+            operationId: NetbootProfileService_CloneProfile
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CloneProfileRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CloneProfileResponse'
+    /v1/profiles/{id}/preview:
+        post:
+            tags:
+                - NetbootProfileService
+            description: |-
+                Renders the autoinstall seed for a profile. The upstream redacts
+                 credentials before returning; we never un-redact.
+            operationId: NetbootProfileService_PreviewProfile
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/PreviewProfileRequest'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/PreviewProfileResponse'
+    /v1/sessions:
+        get:
+            tags:
+                - NetbootSessionService
+            operationId: NetbootSessionService_ListSessions
+            parameters:
+                - name: page.page
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+                - name: page.pageSize
+                  in: query
+                  schema:
+                    type: integer
+                    format: uint32
+                - name: machineId
+                  in: query
+                  schema:
+                    type: string
+                - name: state
+                  in: query
+                  schema:
+                    enum:
+                        - SESSION_STATE_UNSPECIFIED
+                        - SESSION_STATE_ACTIVE
+                        - SESSION_STATE_COMPLETED
+                        - SESSION_STATE_FAILED
+                        - SESSION_STATE_STALE
+                    type: string
+                    format: enum
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/ListSessionsResponse'
+    /v1/sessions/{id}:
+        get:
+            tags:
+                - NetbootSessionService
+            operationId: NetbootSessionService_GetSession
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GetSessionResponse'
+    /v1/stats:
+        get:
+            tags:
+                - NetbootSystemService
+            operationId: NetbootSystemService_GetStats
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/GetStatsResponse'
+    /v1/upstream/check:
+        get:
+            tags:
+                - NetbootSystemService
+            description: Probes the configured netbootd instance.
+            operationId: NetbootSystemService_CheckUpstream
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/CheckUpstreamResponse'
+components:
+    schemas:
+        BootArtifact:
+            type: object
+            properties:
+                id:
+                    type: string
+                kind:
+                    enum:
+                        - ARTIFACT_KIND_UNSPECIFIED
+                        - ARTIFACT_KIND_KERNEL
+                        - ARTIFACT_KIND_INITRD
+                        - ARTIFACT_KIND_IPXE_BIN
+                        - ARTIFACT_KIND_OTHER
+                    type: string
+                    format: enum
+                ubuntuRelease:
+                    type: string
+                filename:
+                    type: string
+                sizeBytes:
+                    type: string
+                sha256:
+                    type: string
+                uploadedBy:
+                    type: string
+                createTime:
+                    type: string
+                    format: date-time
+                updateTime:
+                    type: string
+                    format: date-time
+        CancelProvisionRequest:
+            required:
+                - id
+            type: object
+            properties:
+                id:
+                    type: string
+        CancelProvisionResponse:
+            type: object
+            properties:
+                machine:
+                    $ref: '#/components/schemas/Machine'
+        CheckUpstreamResponse:
+            type: object
+            properties:
+                connected:
+                    type: boolean
+                endpoint:
+                    type: string
+                    description: |-
+                        Scheme + host of the configured netbootd instance. Never carries
+                         credentials, and is only exposed to authorized operators.
+                tls:
+                    type: boolean
+                    description: Whether the transport to the upstream is TLS-protected.
+                authenticated:
+                    type: boolean
+                    description: Whether an operator session is currently established.
+                latencyMs:
+                    type: string
+                message:
+                    type: string
+        CloneProfileRequest:
+            required:
+                - id
+                - newName
+            type: object
+            properties:
+                id:
+                    type: string
+                newName:
+                    type: string
+        CloneProfileResponse:
+            type: object
+            properties:
+                profile:
+                    $ref: '#/components/schemas/Profile'
+        ComponentHealth:
+            type: object
+            properties:
+                status:
+                    enum:
+                        - HEALTH_STATUS_UNSPECIFIED
+                        - HEALTH_STATUS_HEALTHY
+                        - HEALTH_STATUS_DEGRADED
+                        - HEALTH_STATUS_UNHEALTHY
+                    type: string
+                    format: enum
+                message:
+                    type: string
+        CreateMachineRequest:
+            required:
+                - mac
+                - name
+            type: object
+            properties:
+                mac:
+                    type: string
+                    description: Colon- or hyphen-separated 48-bit MAC address.
+                name:
+                    type: string
+                firmware:
+                    enum:
+                        - FIRMWARE_UNSPECIFIED
+                        - FIRMWARE_BIOS
+                        - FIRMWARE_UEFI_X64
+                        - FIRMWARE_UNKNOWN
+                    type: string
+                    format: enum
+                profileId:
+                    type: string
+                reservationIp:
+                    type: string
+                notes:
+                    type: string
+                networkConfig:
+                    type: string
+                    description: JSON netplan override; empty means "use the profile's".
+                installNetwork:
+                    $ref: '#/components/schemas/InstallNetwork'
+        CreateMachineResponse:
+            type: object
+            properties:
+                machine:
+                    $ref: '#/components/schemas/Machine'
+        CreateProfileRequest:
+            required:
+                - profile
+            type: object
+            properties:
+                profile:
+                    $ref: '#/components/schemas/ProfileInput'
+        CreateProfileResponse:
+            type: object
+            properties:
+                profile:
+                    $ref: '#/components/schemas/Profile'
+        DhcpConfig:
+            type: object
+            properties:
+                enabled:
+                    type: boolean
+                version:
+                    type: integer
+                    format: int32
+                leaseTtlSeconds:
+                    type: integer
+                    format: int32
+                subnets:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/DhcpSubnet'
+                updateTime:
+                    type: string
+                    format: date-time
+        DhcpSubnet:
+            required:
+                - network
+                - rangeStart
+                - rangeEnd
+            type: object
+            properties:
+                id:
+                    type: string
+                network:
+                    type: string
+                    description: Network in CIDR form, e.g. 10.10.0.0/24.
+                rangeStart:
+                    type: string
+                rangeEnd:
+                    type: string
+                gateway:
+                    type: string
+                dns:
+                    type: array
+                    items:
+                        type: string
+        DisableDhcpRequest:
+            type: object
+            properties: {}
+        DisableDhcpResponse:
+            type: object
+            properties:
+                config:
+                    $ref: '#/components/schemas/DhcpConfig'
+        EnableDhcpRequest:
+            type: object
+            properties: {}
+        EnableDhcpResponse:
+            type: object
+            properties:
+                config:
+                    $ref: '#/components/schemas/DhcpConfig'
+        ForeignServer:
+            type: object
+            properties:
+                serverId:
+                    type: string
+                lastSeen:
+                    type: string
+                    format: date-time
+                offersSeen:
+                    type: string
+            description: ForeignServer is a rogue/unexpected DHCP server seen on the segment.
+        GetArtifactResponse:
+            type: object
+            properties:
+                artifact:
+                    $ref: '#/components/schemas/BootArtifact'
+        GetDhcpConfigResponse:
+            type: object
+            properties:
+                config:
+                    $ref: '#/components/schemas/DhcpConfig'
+        GetInfoResponse:
+            type: object
+            properties:
+                version:
+                    type: string
+                buildTime:
+                    type: string
+                goVersion:
+                    type: string
+                gitCommit:
+                    type: string
+        GetMachineResponse:
+            type: object
+            properties:
+                machine:
+                    $ref: '#/components/schemas/Machine'
+        GetProfileResponse:
+            type: object
+            properties:
+                profile:
+                    $ref: '#/components/schemas/Profile'
+        GetSessionResponse:
+            type: object
+            properties:
+                session:
+                    $ref: '#/components/schemas/ProvisioningSession'
+                timeline:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/ProvisioningEvent'
+                evidence:
+                    type: string
+                    description: Opaque JSON evidence bundle as recorded upstream.
+        GetStatsResponse:
+            type: object
+            properties:
+                totalMachines:
+                    type: string
+                installingMachines:
+                    type: string
+                installedMachines:
+                    type: string
+                failedMachines:
+                    type: string
+                totalProfiles:
+                    type: string
+                activeSessions:
+                    type: string
+                unknownBoots:
+                    type: string
+                activeLeases:
+                    type: string
+                dhcpEnabled:
+                    type: boolean
+        HealthResponse:
+            type: object
+            properties:
+                status:
+                    enum:
+                        - HEALTH_STATUS_UNSPECIFIED
+                        - HEALTH_STATUS_HEALTHY
+                        - HEALTH_STATUS_DEGRADED
+                        - HEALTH_STATUS_UNHEALTHY
+                    type: string
+                    format: enum
+                message:
+                    type: string
+                components:
+                    type: object
+                    additionalProperties:
+                        $ref: '#/components/schemas/ComponentHealth'
+        InstallNetwork:
+            type: object
+            properties:
+                address:
+                    type: string
+                    description: Production IP in CIDR form, e.g. 10.0.0.10/24.
+                gateway:
+                    type: string
+                    description: Default route next hop.
+                dns:
+                    type: array
+                    items:
+                        type: string
+                    description: Nameservers; empty inherits the profile default.
+            description: |-
+                InstallNetwork is the "production network" of the two-NIC netboot pattern:
+                 the production NIC receives this static configuration (and owns the only
+                 default route) while the provisioning NIC is torn down after install.
+        Lease:
+            type: object
+            properties:
+                ip:
+                    type: string
+                mac:
+                    type: string
+                machineId:
+                    type: string
+                machineName:
+                    type: string
+                expiresAt:
+                    type: string
+                    format: date-time
+        ListArtifactsResponse:
+            type: object
+            properties:
+                artifacts:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/BootArtifact'
+                meta:
+                    $ref: '#/components/schemas/PageMeta'
+        ListForeignServersResponse:
+            type: object
+            properties:
+                servers:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/ForeignServer'
+                meta:
+                    $ref: '#/components/schemas/PageMeta'
+        ListLeasesResponse:
+            type: object
+            properties:
+                leases:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Lease'
+                meta:
+                    $ref: '#/components/schemas/PageMeta'
+        ListMachinesResponse:
+            type: object
+            properties:
+                machines:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Machine'
+                meta:
+                    $ref: '#/components/schemas/PageMeta'
+        ListProfilesResponse:
+            type: object
+            properties:
+                profiles:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Profile'
+                meta:
+                    $ref: '#/components/schemas/PageMeta'
+        ListSessionsResponse:
+            type: object
+            properties:
+                sessions:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/ProvisioningSession'
+                meta:
+                    $ref: '#/components/schemas/PageMeta'
+        ListTransfersResponse:
+            type: object
+            properties:
+                transfers:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/Transfer'
+                meta:
+                    $ref: '#/components/schemas/PageMeta'
+        ListUnknownBootsResponse:
+            type: object
+            properties:
+                boots:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/UnknownBoot'
+                meta:
+                    $ref: '#/components/schemas/PageMeta'
+        Machine:
+            type: object
+            properties:
+                id:
+                    type: string
+                mac:
+                    type: string
+                name:
+                    type: string
+                firmware:
+                    enum:
+                        - FIRMWARE_UNSPECIFIED
+                        - FIRMWARE_BIOS
+                        - FIRMWARE_UEFI_X64
+                        - FIRMWARE_UNKNOWN
+                    type: string
+                    format: enum
+                profileId:
+                    type: string
+                reservationIp:
+                    type: string
+                provisionState:
+                    enum:
+                        - PROVISION_STATE_UNSPECIFIED
+                        - PROVISION_STATE_NEW
+                        - PROVISION_STATE_READY
+                        - PROVISION_STATE_INSTALLING
+                        - PROVISION_STATE_INSTALLED
+                        - PROVISION_STATE_FAILED
+                    type: string
+                    format: enum
+                notes:
+                    type: string
+                createTime:
+                    type: string
+                    format: date-time
+                updateTime:
+                    type: string
+                    format: date-time
+                activeSessionId:
+                    type: string
+                networkConfig:
+                    type: string
+                    description: JSON netplan override; empty means "use the profile's".
+                installNetwork:
+                    $ref: '#/components/schemas/InstallNetwork'
+            description: Machine is a netboot target registered on the upstream netbootd.
+        PageMeta:
+            type: object
+            properties:
+                total:
+                    type: string
+                page:
+                    type: integer
+                    format: int32
+                pageSize:
+                    type: integer
+                    format: int32
+            description: Pagination metadata echoed back by every list RPC.
+        PreviewProfileRequest:
+            required:
+                - id
+            type: object
+            properties:
+                id:
+                    type: string
+                machineId:
+                    type: string
+                    description: Optional; a fixture machine is used when empty.
+        PreviewProfileResponse:
+            type: object
+            properties:
+                userData:
+                    type: string
+                    description: Rendered autoinstall YAML with credentials already redacted upstream.
+                cmdline:
+                    type: string
+        Profile:
+            type: object
+            properties:
+                id:
+                    type: string
+                name:
+                    type: string
+                version:
+                    type: integer
+                    format: int32
+                ubuntuRelease:
+                    type: string
+                storageLayout:
+                    type: string
+                    description: 'JSON: {mode: lvm|direct|custom, custom: ...}'
+                networkConfig:
+                    type: string
+                    description: JSON, netplan-shaped.
+                packages:
+                    type: array
+                    items:
+                        type: string
+                sshAuthorizedKeys:
+                    type: array
+                    items:
+                        type: string
+                userDataTemplate:
+                    type: string
+                lateCommands:
+                    type: array
+                    items:
+                        type: string
+                kernelCmdlineExtra:
+                    type: string
+                createTime:
+                    type: string
+                    format: date-time
+                updateTime:
+                    type: string
+                    format: date-time
+                assignedMachines:
+                    type: string
+                keyboardLayout:
+                    type: string
+                keyboardVariant:
+                    type: string
+                locale:
+                    type: string
+                timezone:
+                    type: string
+                installUsername:
+                    type: string
+                hasPassword:
+                    type: boolean
+                    description: Whether a login password is set. The hash is never returned.
+                defaultDns:
+                    type: array
+                    items:
+                        type: string
+            description: |-
+                Profile is an installation profile. The login password is never carried on
+                 this message - only has_password reports whether one is set.
+        ProfileInput:
+            required:
+                - name
+                - ubuntuRelease
+            type: object
+            properties:
+                name:
+                    type: string
+                ubuntuRelease:
+                    type: string
+                storageLayout:
+                    type: string
+                networkConfig:
+                    type: string
+                packages:
+                    type: array
+                    items:
+                        type: string
+                sshAuthorizedKeys:
+                    type: array
+                    items:
+                        type: string
+                userDataTemplate:
+                    type: string
+                lateCommands:
+                    type: array
+                    items:
+                        type: string
+                kernelCmdlineExtra:
+                    type: string
+                keyboardLayout:
+                    type: string
+                keyboardVariant:
+                    type: string
+                locale:
+                    type: string
+                timezone:
+                    type: string
+                installUsername:
+                    type: string
+                password:
+                    type: string
+                    description: |-
+                        Plaintext login password. Hashed (sha512-crypt) by the upstream and never
+                         stored or returned in the clear. Empty on update keeps the existing
+                         password; set clear_password to remove it. Redacted from every log and
+                         audit record.
+                clearPassword:
+                    type: boolean
+                defaultDns:
+                    type: array
+                    items:
+                        type: string
+            description: ProfileInput is the mutable body of a profile.
+        ProvisionMachineRequest:
+            required:
+                - id
+            type: object
+            properties:
+                id:
+                    type: string
+        ProvisionMachineResponse:
+            type: object
+            properties:
+                machine:
+                    $ref: '#/components/schemas/Machine'
+        ProvisioningEvent:
+            type: object
+            properties:
+                time:
+                    type: string
+                    format: date-time
+                sessionId:
+                    type: string
+                machineMac:
+                    type: string
+                phase:
+                    type: string
+                outcome:
+                    enum:
+                        - EVENT_OUTCOME_UNSPECIFIED
+                        - EVENT_OUTCOME_OK
+                        - EVENT_OUTCOME_ERROR
+                        - EVENT_OUTCOME_DENIED
+                    type: string
+                    format: enum
+                detail:
+                    type: string
+                    description: Opaque JSON detail as recorded upstream.
+        ProvisioningSession:
+            type: object
+            properties:
+                id:
+                    type: string
+                machineId:
+                    type: string
+                machineName:
+                    type: string
+                machineMac:
+                    type: string
+                profileId:
+                    type: string
+                profileVersion:
+                    type: integer
+                    format: int32
+                state:
+                    enum:
+                        - SESSION_STATE_UNSPECIFIED
+                        - SESSION_STATE_ACTIVE
+                        - SESSION_STATE_COMPLETED
+                        - SESSION_STATE_FAILED
+                        - SESSION_STATE_STALE
+                    type: string
+                    format: enum
+                startedAt:
+                    type: string
+                    format: date-time
+                endedAt:
+                    type: string
+                    format: date-time
+                failurePhase:
+                    type: string
+        RegisterUnknownMachineRequest:
+            required:
+                - mac
+                - name
+            type: object
+            properties:
+                mac:
+                    type: string
+                name:
+                    type: string
+                profileId:
+                    type: string
+        RegisterUnknownMachineResponse:
+            type: object
+            properties:
+                machine:
+                    $ref: '#/components/schemas/Machine'
+        Transfer:
+            type: object
+            properties:
+                time:
+                    type: string
+                    format: date-time
+                clientIp:
+                    type: string
+                filename:
+                    type: string
+                bytesSent:
+                    type: string
+                success:
+                    type: boolean
+                error:
+                    type: string
+                protocol:
+                    enum:
+                        - TRANSFER_PROTOCOL_UNSPECIFIED
+                        - TRANSFER_PROTOCOL_TFTP
+                        - TRANSFER_PROTOCOL_HTTP
+                    type: string
+                    format: enum
+        UnknownBoot:
+            type: object
+            properties:
+                mac:
+                    type: string
+                lastSeen:
+                    type: string
+                    format: date-time
+                attempts:
+                    type: string
+            description: UnknownBoot is a MAC that requested boot but is not registered.
+        UpdateDhcpConfigRequest:
+            type: object
+            properties:
+                leaseTtlSeconds:
+                    type: integer
+                    description: Lease lifetime; bounded to sane values (1 minute .. 7 days).
+                    format: int32
+                subnets:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/DhcpSubnet'
+        UpdateDhcpConfigResponse:
+            type: object
+            properties:
+                config:
+                    $ref: '#/components/schemas/DhcpConfig'
+        UpdateMachineRequest:
+            required:
+                - id
+            type: object
+            properties:
+                id:
+                    type: string
+                name:
+                    type: string
+                profileId:
+                    type: string
+                reservationIp:
+                    type: string
+                notes:
+                    type: string
+                networkConfig:
+                    type: string
+                    description: Empty string clears the override.
+                installNetwork:
+                    allOf:
+                        - $ref: '#/components/schemas/InstallNetwork'
+                    description: |-
+                        Set to replace the production network; an InstallNetwork with an empty
+                         address clears it.
+        UpdateMachineResponse:
+            type: object
+            properties:
+                machine:
+                    $ref: '#/components/schemas/Machine'
+        UpdateProfileRequest:
+            required:
+                - id
+                - profile
+            type: object
+            properties:
+                id:
+                    type: string
+                profile:
+                    $ref: '#/components/schemas/ProfileInput'
+        UpdateProfileResponse:
+            type: object
+            properties:
+                profile:
+                    $ref: '#/components/schemas/Profile'
+tags:
+    - name: NetbootArtifactService
+      description: |-
+        Artifact Service - boot artifacts (kernels, initrds, iPXE binaries) and the
+         transfer log of the TFTP/HTTP boot path.
+
+         Upload and replace are multipart HTTP endpoints on the upstream and are
+         deliberately not proxied: streaming multi-hundred-megabyte kernels through
+         the admin gateway would put unbounded memory pressure on this module.
+         Operators upload artifacts directly to the netbootd host.
+    - name: NetbootDhcpService
+      description: |-
+        DHCP Service - the authoritative DHCP configuration of the upstream
+         netbootd, its active leases, and any foreign DHCP servers it has observed
+         on the provisioning segment.
+    - name: NetbootMachineService
+      description: |-
+        Machine Service - manages netboot target machines on the upstream netbootd
+         instance. Every RPC is a thin, authorized, validated proxy: this module
+         owns no machine state of its own.
+    - name: NetbootProfileService
+      description: Profile Service - installation profiles (autoinstall seed templates).
+    - name: NetbootSessionService
+      description: |-
+        Session Service - provisioning sessions and their event timelines.
+
+         The upstream also exposes a server-sent-events stream at
+         GET /api/v1/events/stream. It is not expressible as a unary RPC and is not
+         proxied: the operator UI polls ListSessions instead, which keeps the
+         module stateless and avoids holding long-lived upstream connections open
+         on behalf of browser clients.
+    - name: NetbootSystemService
+      description: |-
+        System Service - health, build info, upstream connectivity and the
+         aggregate counters that back the Vben admin dashboard widgets.

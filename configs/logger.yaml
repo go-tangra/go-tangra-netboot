@@ -1,0 +1,8 @@
+logger:
+  type: "zap"
+  zap:
+    filename: "netboot.log"
+    level: "info"
+    max_size: 10
+    max_age: 7
+    max_backups: 5

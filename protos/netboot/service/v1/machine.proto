@@ -1,0 +1,378 @@
+syntax = "proto3";
+
+package netboot.service.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+import "google/api/field_behavior.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+import "netboot/service/v1/common.proto";
+
+// Machine Service - manages netboot target machines on the upstream netbootd
+// instance. Every RPC is a thin, authorized, validated proxy: this module
+// owns no machine state of its own.
+service NetbootMachineService {
+  rpc ListMachines(ListMachinesRequest) returns (ListMachinesResponse) {
+    option (google.api.http) = {get: "/v1/machines"};
+  }
+
+  // Literal-path routes are declared before the /{id} route so the router
+  // matches them first (otherwise "unknown" is parsed as an id).
+  rpc ListUnknownBoots(ListUnknownBootsRequest) returns (ListUnknownBootsResponse) {
+    option (google.api.http) = {get: "/v1/machines/unknown"};
+  }
+
+  rpc GetMachine(GetMachineRequest) returns (GetMachineResponse) {
+    option (google.api.http) = {get: "/v1/machines/{id}"};
+  }
+
+  rpc CreateMachine(CreateMachineRequest) returns (CreateMachineResponse) {
+    option (google.api.http) = {
+      post: "/v1/machines"
+      body: "*"
+    };
+  }
+
+  rpc UpdateMachine(UpdateMachineRequest) returns (UpdateMachineResponse) {
+    option (google.api.http) = {
+      patch: "/v1/machines/{id}"
+      body: "*"
+    };
+  }
+
+  rpc DeleteMachine(DeleteMachineRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {delete: "/v1/machines/{id}"};
+  }
+
+  rpc ProvisionMachine(ProvisionMachineRequest) returns (ProvisionMachineResponse) {
+    option (google.api.http) = {
+      post: "/v1/machines/{id}/provision"
+      body: "*"
+    };
+  }
+
+  rpc CancelProvision(CancelProvisionRequest) returns (CancelProvisionResponse) {
+    option (google.api.http) = {
+      post: "/v1/machines/{id}/cancel"
+      body: "*"
+    };
+  }
+
+  rpc RegisterUnknownMachine(RegisterUnknownMachineRequest) returns (RegisterUnknownMachineResponse) {
+    option (google.api.http) = {
+      post: "/v1/machines/register-unknown"
+      body: "*"
+    };
+  }
+}
+
+// Firmware detected during PXE negotiation.
+enum Firmware {
+  FIRMWARE_UNSPECIFIED = 0;
+  FIRMWARE_BIOS = 1;
+  FIRMWARE_UEFI_X64 = 2;
+  FIRMWARE_UNKNOWN = 3;
+}
+
+// Lifecycle state of a machine's provisioning.
+enum ProvisionState {
+  PROVISION_STATE_UNSPECIFIED = 0;
+  PROVISION_STATE_NEW = 1;
+  PROVISION_STATE_READY = 2;
+  PROVISION_STATE_INSTALLING = 3;
+  PROVISION_STATE_INSTALLED = 4;
+  PROVISION_STATE_FAILED = 5;
+}
+
+// InstallNetwork is the "production network" of the two-NIC netboot pattern:
+// the production NIC receives this static configuration (and owns the only
+// default route) while the provisioning NIC is torn down after install.
+message InstallNetwork {
+  // Production IP in CIDR form, e.g. 10.0.0.10/24.
+  string address = 1 [
+    json_name = "address",
+    (buf.validate.field).string = {max_len: 43}
+  ];
+
+  // Default route next hop.
+  string gateway = 2 [
+    json_name = "gateway",
+    (buf.validate.field).string = {max_len: 45}
+  ];
+
+  // Nameservers; empty inherits the profile default.
+  repeated string dns = 3 [
+    json_name = "dns",
+    (buf.validate.field).repeated = {
+      max_items: 8
+      items: {
+        string: {max_len: 45}
+      }
+    }
+  ];
+}
+
+// Machine is a netboot target registered on the upstream netbootd.
+message Machine {
+  string id = 1 [json_name = "id"];
+  string mac = 2 [json_name = "mac"];
+  string name = 3 [json_name = "name"];
+  Firmware firmware = 4 [json_name = "firmware"];
+  string profile_id = 5 [json_name = "profileId"];
+  string reservation_ip = 6 [json_name = "reservationIp"];
+  ProvisionState provision_state = 7 [json_name = "provisionState"];
+  string notes = 8 [json_name = "notes"];
+  google.protobuf.Timestamp create_time = 9 [json_name = "createTime"];
+  google.protobuf.Timestamp update_time = 10 [json_name = "updateTime"];
+  string active_session_id = 11 [json_name = "activeSessionId"];
+
+  // JSON netplan override; empty means "use the profile's".
+  string network_config = 12 [json_name = "networkConfig"];
+
+  InstallNetwork install_network = 13 [json_name = "installNetwork"];
+}
+
+message ListMachinesRequest {
+  PageRequest page = 1 [json_name = "page"];
+
+  optional ProvisionState state = 2 [json_name = "state"];
+
+  optional string profile_id = 3 [
+    json_name = "profileId",
+    (buf.validate.field).string = {
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]*$"
+    }
+  ];
+
+  // Free-text substring match over name and MAC.
+  optional string q = 4 [
+    json_name = "q",
+    (buf.validate.field).string = {max_len: 128}
+  ];
+}
+
+message ListMachinesResponse {
+  repeated Machine machines = 1 [json_name = "machines"];
+  PageMeta meta = 2 [json_name = "meta"];
+}
+
+message GetMachineRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]+$"
+    }
+  ];
+}
+
+message GetMachineResponse {
+  Machine machine = 1 [json_name = "machine"];
+}
+
+message CreateMachineRequest {
+  // Colon- or hyphen-separated 48-bit MAC address.
+  string mac = 1 [
+    json_name = "mac",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 12
+      max_len: 17
+      pattern: "^([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}$"
+    }
+  ];
+
+  string name = 2 [
+    json_name = "name",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 255
+      pattern: "^[a-zA-Z0-9][a-zA-Z0-9\\-_\\.]*$"
+    }
+  ];
+
+  Firmware firmware = 3 [json_name = "firmware"];
+
+  string profile_id = 4 [
+    json_name = "profileId",
+    (buf.validate.field).string = {
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]*$"
+    }
+  ];
+
+  string reservation_ip = 5 [
+    json_name = "reservationIp",
+    (buf.validate.field).string = {max_len: 45}
+  ];
+
+  string notes = 6 [
+    json_name = "notes",
+    (buf.validate.field).string = {max_len: 4096}
+  ];
+
+  // JSON netplan override; empty means "use the profile's".
+  string network_config = 7 [
+    json_name = "networkConfig",
+    (buf.validate.field).string = {max_len: 65536}
+  ];
+
+  InstallNetwork install_network = 8 [json_name = "installNetwork"];
+}
+
+message CreateMachineResponse {
+  Machine machine = 1 [json_name = "machine"];
+}
+
+message UpdateMachineRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]+$"
+    }
+  ];
+
+  optional string name = 2 [
+    json_name = "name",
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 255
+      pattern: "^[a-zA-Z0-9][a-zA-Z0-9\\-_\\.]*$"
+    }
+  ];
+
+  optional string profile_id = 3 [
+    json_name = "profileId",
+    (buf.validate.field).string = {
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]*$"
+    }
+  ];
+
+  optional string reservation_ip = 4 [
+    json_name = "reservationIp",
+    (buf.validate.field).string = {max_len: 45}
+  ];
+
+  optional string notes = 5 [
+    json_name = "notes",
+    (buf.validate.field).string = {max_len: 4096}
+  ];
+
+  // Empty string clears the override.
+  optional string network_config = 6 [
+    json_name = "networkConfig",
+    (buf.validate.field).string = {max_len: 65536}
+  ];
+
+  // Set to replace the production network; an InstallNetwork with an empty
+  // address clears it.
+  InstallNetwork install_network = 7 [json_name = "installNetwork"];
+}
+
+message UpdateMachineResponse {
+  Machine machine = 1 [json_name = "machine"];
+}
+
+message DeleteMachineRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]+$"
+    }
+  ];
+}
+
+message ProvisionMachineRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]+$"
+    }
+  ];
+}
+
+message ProvisionMachineResponse {
+  Machine machine = 1 [json_name = "machine"];
+}
+
+message CancelProvisionRequest {
+  string id = 1 [
+    json_name = "id",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]+$"
+    }
+  ];
+}
+
+message CancelProvisionResponse {
+  Machine machine = 1 [json_name = "machine"];
+}
+
+// UnknownBoot is a MAC that requested boot but is not registered.
+message UnknownBoot {
+  string mac = 1 [json_name = "mac"];
+  google.protobuf.Timestamp last_seen = 2 [json_name = "lastSeen"];
+  int64 attempts = 3 [json_name = "attempts"];
+}
+
+message ListUnknownBootsRequest {
+  PageRequest page = 1 [json_name = "page"];
+}
+
+message ListUnknownBootsResponse {
+  repeated UnknownBoot boots = 1 [json_name = "boots"];
+  PageMeta meta = 2 [json_name = "meta"];
+}
+
+message RegisterUnknownMachineRequest {
+  string mac = 1 [
+    json_name = "mac",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 12
+      max_len: 17
+      pattern: "^([0-9a-fA-F]{2}[:-]){5}[0-9a-fA-F]{2}$"
+    }
+  ];
+
+  string name = 2 [
+    json_name = "name",
+    (google.api.field_behavior) = REQUIRED,
+    (buf.validate.field).string = {
+      min_len: 1
+      max_len: 255
+      pattern: "^[a-zA-Z0-9][a-zA-Z0-9\\-_\\.]*$"
+    }
+  ];
+
+  string profile_id = 3 [
+    json_name = "profileId",
+    (buf.validate.field).string = {
+      max_len: 64
+      pattern: "^[a-zA-Z0-9_\\-]*$"
+    }
+  ];
+}
+
+message RegisterUnknownMachineResponse {
+  Machine machine = 1 [json_name = "machine"];
+}
