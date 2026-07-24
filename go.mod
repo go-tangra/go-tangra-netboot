@@ -5,7 +5,7 @@ go 1.25.4
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1
 	github.com/go-kratos/kratos/v2 v2.9.2
-	github.com/go-tangra/go-tangra-common v1.19.0
+	github.com/go-tangra/go-tangra-common v1.20.0
 	github.com/google/wire v0.7.0
 	github.com/menta2k/protoc-gen-redact/v3 v3.0.0-20260213125431-7688a38967d4
 	github.com/prometheus/client_golang v1.24.0

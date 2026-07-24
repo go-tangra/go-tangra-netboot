@@ -11,6 +11,7 @@ import (
 	"github.com/tx7do/kratos-bootstrap/bootstrap"
 
 	"github.com/go-tangra/go-tangra-common/middleware/audit"
+	"github.com/go-tangra/go-tangra-common/middleware/claims"
 	"github.com/go-tangra/go-tangra-common/middleware/mtls"
 
 	netbootV1 "github.com/go-tangra/go-tangra-netboot/gen/go/netboot/service/v1"
@@ -83,8 +84,15 @@ func NewGRPCServer(
 		ms = append(ms, mtls.MTLSMiddleware(
 			ctx.GetLogger(),
 			mtls.WithPublicEndpoints(healthOperations...),
+			// mTLS caller allow-list (client cert CN "lcm-<module>"); gateway=lcm-admin, backup=lcm-backup.
+			mtls.WithAllowedIdentities("lcm-admin", "lcm-backup"),
 		))
 	}
+
+	// Bind x-md-global-* user claims to the gateway's HMAC assertion so a direct
+	// mTLS caller cannot forge platform:admin (CRIT-3.2). No-op for calls that
+	// carry no user claims; strips unverified claims in enforce mode.
+	ms = append(ms, claims.Server(ctx.GetLogger()))
 
 	// Every mutation of netboot state - arming a machine, rewriting the DHCP
 	// scope, deleting a kernel - is audited. Health and info are skipped

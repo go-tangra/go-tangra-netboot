@@ -47,6 +47,8 @@ github.com/go-playground/form/v4 v4.3.0 h1:OVttojbQv2WNCs4P+VnjPtrt/+30Ipw4890W3
 github.com/go-playground/form/v4 v4.3.0/go.mod h1:Cpe1iYJKoXb1vILRXEwxpWMGWyQuqplQ/4cvPecy+Jo=
 github.com/go-tangra/go-tangra-common v1.19.0 h1:iTdCW4cfoQE1ve5Qn4kLw6c11mQP3g6PVRMcg+WwFKY=
 github.com/go-tangra/go-tangra-common v1.19.0/go.mod h1:0C4xOjrYy4Zyu5953Y4ixtL+08qplYwk8423Aqntg3o=
+github.com/go-tangra/go-tangra-common v1.20.0 h1:A1qmb+JF6119ZQdZKIBPlwgAPE5FcGBPfK6tnOiYUCI=
+github.com/go-tangra/go-tangra-common v1.20.0/go.mod h1:0C4xOjrYy4Zyu5953Y4ixtL+08qplYwk8423Aqntg3o=
 github.com/golang/protobuf v1.5.4 h1:i7eJL8qZTpSEXOPTxNKhASYpMn+8e5Q6AdndVa1dWek=
 github.com/golang/protobuf v1.5.4/go.mod h1:lnTiLA8Wa4RWRcIUkrtSVa5nRhsEGBg48fD6rSs7xps=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
